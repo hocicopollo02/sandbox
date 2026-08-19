@@ -142,6 +142,20 @@ go build ./...
 go build -o sandbox .
 ```
 
+### Pre-push local
+
+Activa el hook versionado una vez por clon:
+
+```bash
+make hooks
+```
+
+Antes de cada push ejecutará `go test ./...` y `go vet ./...`. Los E2E no corren por defecto porque requieren runtime, red y varios minutos; para incluirlos explícitamente:
+
+```bash
+SANDBOX_E2E=1 git push
+```
+
 La suite E2E opcional usa un pseudo-terminal y crea contenedores reales. Requiere Podman rootless, Distrobox, red y permiso para descargar la imagen. Se activa explícitamente para no ejecutar contenedores durante un test normal:
 
 ```bash
