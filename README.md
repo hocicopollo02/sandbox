@@ -142,11 +142,13 @@ go build ./...
 go build -o sandbox .
 ```
 
-La suite de integración opcional se reserva para entornos con Podman y Distrobox configurados:
+La suite E2E opcional usa un pseudo-terminal y crea contenedores reales. Requiere Podman rootless, Distrobox, red y permiso para descargar la imagen. Se activa explícitamente para no ejecutar contenedores durante un test normal:
 
 ```bash
-go test -tags=integration ./...
+SANDBOX_E2E=1 go test -tags=integration ./...
 ```
+
+Cubre `doctor`, ciclo persistent (incluyendo `stop`), ciclo disposable y cleanup tras `Ctrl+C`.
 
 Las variables de build están preparadas para versionado:
 

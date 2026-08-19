@@ -114,7 +114,9 @@ func (m *Manager) Create(ctx context.Context, options CreateOptions) (bool, erro
 	}
 	if err := m.Container.Enter(ctx, name); err != nil {
 		if options.Persistence == Disposable {
-			cleanupErr := m.Container.Delete(ctx, name)
+			cleanupCtx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+			defer cancel()
+			cleanupErr := m.Container.Delete(cleanupCtx, name)
 			if homeCreated {
 				cleanupErr = errors.Join(cleanupErr, m.Store.RemoveHome(name))
 			}

@@ -41,17 +41,31 @@ func (c *Client) Enter(ctx context.Context, name string) error {
 }
 
 func (c *Client) Stop(ctx context.Context, name string) error {
-	output, err := c.Runner.Run(ctx, "distrobox", "stop", name)
-	if err != nil {
+	output, err := c.Runner.Run(ctx, "distrobox", "stop", "--yes", name)
+	if err == nil {
+		return nil
+	}
+	if !strings.Contains(strings.ToLower(string(output)), "active exec sessions") {
 		return commandError("stop", name, output, err)
+	}
+	fallbackOutput, fallbackErr := c.Runner.Run(ctx, "podman", "stop", name)
+	if fallbackErr != nil {
+		return commandError("stop", name, fallbackOutput, fallbackErr)
 	}
 	return nil
 }
 
 func (c *Client) Delete(ctx context.Context, name string) error {
 	output, err := c.Runner.Run(ctx, "distrobox", "rm", "--force", name)
-	if err != nil {
+	if err == nil {
+		return nil
+	}
+	if !strings.Contains(strings.ToLower(string(output)), "active exec sessions") {
 		return commandError("delete", name, output, err)
+	}
+	fallbackOutput, fallbackErr := c.Runner.Run(ctx, "podman", "rm", "--force", name)
+	if fallbackErr != nil {
+		return commandError("delete", name, fallbackOutput, fallbackErr)
 	}
 	return nil
 }
