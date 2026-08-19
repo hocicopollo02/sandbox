@@ -1,0 +1,54 @@
+package cmd
+
+import (
+	"fmt"
+
+	"github.com/pablo/sandbox/internal/sandbox"
+	"github.com/pablo/sandbox/internal/ui"
+	"github.com/spf13/cobra"
+)
+
+func newDeleteCommand(appState *app) *cobra.Command {
+	var yes, keepHome bool
+	cmd := &cobra.Command{
+		Use:     "delete NAME",
+		Aliases: []string{"rm"},
+		Short:   "Delete a sandbox and optionally its isolated home",
+		Args: func(cmd *cobra.Command, args []string) error {
+			if len(args) != 1 {
+				return fmt.Errorf("delete requires a sandbox name")
+			}
+			return nil
+		},
+		RunE: func(cmd *cobra.Command, args []string) error {
+			info, err := appState.manager.Info(cmd.Context(), args[0])
+			if err != nil {
+				return err
+			}
+			if !yes {
+				confirmed, err := ui.ConfirmDelete(info.Name, appState.in, appState.out)
+				if err != nil {
+					return err
+				}
+				if !confirmed {
+					return fmt.Errorf("deletion cancelled")
+				}
+			}
+			deleteHome := info.HomeMode == sandbox.IsolatedHome && !keepHome
+			if deleteHome && !yes {
+				deleteHome, err = ui.ConfirmDeleteHome(appState.in, appState.out)
+				if err != nil {
+					return err
+				}
+			}
+			if err := appState.manager.Delete(cmd.Context(), info.Name, sandbox.DeleteOptions{DeleteHome: deleteHome}); err != nil {
+				return err
+			}
+			appState.ui.Success("Sandbox deleted")
+			return nil
+		},
+	}
+	cmd.Flags().BoolVarP(&yes, "yes", "y", false, "skip confirmations")
+	cmd.Flags().BoolVar(&keepHome, "keep-home", false, "keep an isolated home")
+	return cmd
+}
