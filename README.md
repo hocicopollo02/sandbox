@@ -36,7 +36,7 @@ La herramienta no instala paquetes automáticamente y nunca ejecuta `sudo podman
 sandbox create
 ```
 
-El formulario permite elegir nombre, distribución, persistencia, home y entrada automática. Por defecto usa Arch Linux, un home aislado y un sandbox desechable.
+El wizard presenta una pregunta por pantalla y `Enter` avanza al siguiente paso. Permite elegir nombre, distribución, persistencia, home y entrada automática. Por defecto usa Arch Linux, un home aislado y un sandbox desechable.
 
 Flujo no interactivo:
 

@@ -35,15 +35,23 @@ func PromptCreate(defaults config.Config, in io.Reader, out io.Writer) (CreateAn
 				_, err := sandbox.ValidateName(value)
 				return err
 			}),
+		),
+		huh.NewGroup(
 			huh.NewSelect[string]().Title("Distribution").Options(distroOptions...).Value(&answers.Distribution),
+		),
+		huh.NewGroup(
 			huh.NewSelect[string]().Title("Persistence").Options(
 				huh.NewOption("Disposable", string(sandbox.Disposable)),
 				huh.NewOption("Persistent", string(sandbox.Persistent)),
 			).Value(&answers.Persistence),
+		),
+		huh.NewGroup(
 			huh.NewSelect[string]().Title("Home").Options(
 				huh.NewOption("Isolated", string(sandbox.IsolatedHome)),
 				huh.NewOption("Shared", string(sandbox.SharedHome)),
 			).Value(&answers.HomeMode),
+		),
+		huh.NewGroup(
 			huh.NewConfirm().Title("Enter sandbox now?").Affirmative("Yes").Negative("No").Value(&answers.AutoEnter),
 		),
 	).WithInput(in).WithOutput(out)

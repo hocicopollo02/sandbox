@@ -43,6 +43,34 @@ func TestE2EDoctor(t *testing.T) {
 	}
 }
 
+func TestE2EWizardIsStepwise(t *testing.T) {
+	bin, env := prepareE2E(t)
+	env = setEnv(env, "TERM", "dumb")
+	process := startInteractive(t, bin, env, "create")
+	steps := []struct {
+		prompt string
+		input  string
+	}{
+		{"Name ", "wizard-e2e\r"},
+		{"Distribution ", "1\r"},
+		{"Persistence ", "1\r"},
+		{"Home ", "1\r"},
+		{"Enter sandbox now?", "\r"},
+		{"Create sandbox", "n\r"},
+	}
+	for index, step := range steps {
+		process.waitFor(t, step.prompt, 20*time.Second, nil)
+		if index+1 < len(steps) && strings.Contains(process.outputString(), steps[index+1].prompt) {
+			t.Fatalf("wizard rendered %q before advancing from %q:\n%s", steps[index+1].prompt, step.prompt, process.outputString())
+		}
+		process.write(step.input)
+	}
+	process.wait(t, 20*time.Second)
+	if !strings.Contains(process.outputString(), "sandbox creation cancelled") {
+		t.Fatalf("wizard cancellation output:\n%s", process.outputString())
+	}
+}
+
 func TestE2ESharedHomeRequiresConfirmation(t *testing.T) {
 	bin, env := prepareE2E(t)
 	name := uniqueName("shared-confirm")
