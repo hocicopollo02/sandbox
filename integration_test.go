@@ -43,6 +43,90 @@ func TestE2EDoctor(t *testing.T) {
 	}
 }
 
+func TestE2ESharedHomeRequiresConfirmation(t *testing.T) {
+	bin, env := prepareE2E(t)
+	name := uniqueName("shared-confirm")
+	cleanupSandbox(t, bin, env, name)
+
+	process := startInteractive(t, bin, env, "create", name, "--distro", "arch", "--persistent", "--shared-home")
+	process.waitFor(t, "y Yes", 20*time.Second, nil)
+	process.write("n")
+	process.wait(t, 20*time.Second)
+	if !strings.Contains(process.outputString(), "shared home cancelled") {
+		t.Fatalf("confirmation output:\n%s", process.outputString())
+	}
+	assertContainerMissing(t, env, name)
+}
+
+func TestE2ESharedHomeWithYesDoesNotCreateManagedHome(t *testing.T) {
+	bin, env := prepareE2E(t)
+	name := uniqueName("shared")
+	managedHome := filepath.Join(envHome(env), ".local", "share", "sandbox", "homes", name)
+	metadata := filepath.Join(envHome(env), ".local", "share", "sandbox", "sandboxes", name+".json")
+	cleanupSandbox(t, bin, env, name)
+
+	runCLI(t, bin, env, "create", name, "--distro", "arch", "--persistent", "--shared-home", "--no-enter", "--yes")
+	info := runCLI(t, bin, env, "info", name)
+	if !strings.Contains(info, "Home          shared") || !strings.Contains(info, "Home path     -") {
+		t.Fatalf("shared home info:\n%s", info)
+	}
+	assertMissing(t, managedHome)
+	data, err := os.ReadFile(metadata)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if strings.Contains(string(data), "home_path") {
+		t.Fatalf("shared metadata contains an isolated home path: %s", data)
+	}
+	runCLI(t, bin, env, "delete", name, "--yes")
+	assertContainerMissing(t, env, name)
+}
+
+func TestE2EInvalidNameIsRejectedBeforeRuntime(t *testing.T) {
+	bin, env := prepareE2E(t)
+	output := runCLIFailure(t, bin, env, "create", "Bad Name", "--distro", "arch", "--persistent", "--isolated-home", "--no-enter", "--yes")
+	if !strings.Contains(output, "invalid sandbox name") {
+		t.Fatalf("invalid name output:\n%s", output)
+	}
+}
+
+func TestE2EDuplicateSandboxIsRejected(t *testing.T) {
+	bin, env := prepareE2E(t)
+	name := uniqueName("duplicate")
+	cleanupSandbox(t, bin, env, name)
+	runCLI(t, bin, env, "create", name, "--distro", "arch", "--persistent", "--isolated-home", "--no-enter", "--yes")
+	output := runCLIFailure(t, bin, env, "create", name, "--distro", "arch", "--persistent", "--isolated-home", "--no-enter", "--yes")
+	if !strings.Contains(output, "already exists") {
+		t.Fatalf("duplicate output:\n%s", output)
+	}
+	runCLI(t, bin, env, "delete", name, "--yes")
+}
+
+func TestE2EUnmanagedContainerCollisionIsRejected(t *testing.T) {
+	bin, env := prepareE2E(t)
+	name := uniqueName("unmanaged")
+	cleanupSandbox(t, bin, env, name)
+	create := exec.Command("distrobox", "create", "--yes", "--name", name, "--image", "docker.io/library/archlinux:latest")
+	create.Env = env
+	if output, err := create.CombinedOutput(); err != nil {
+		t.Fatalf("create unmanaged container: %v\n%s", err, output)
+	}
+	output := runCLIFailure(t, bin, env, "create", name, "--distro", "arch", "--persistent", "--isolated-home", "--no-enter", "--yes")
+	if !strings.Contains(output, "already exists outside sandbox metadata") {
+		t.Fatalf("unmanaged collision output:\n%s", output)
+	}
+}
+
+func TestE2EPreflightExplainsMissingRuntime(t *testing.T) {
+	bin, env := prepareE2E(t)
+	missingPath := t.TempDir()
+	env = setEnv(env, "PATH", missingPath)
+	output := runCLIFailure(t, bin, env, "create", uniqueName("missing-runtime"), "--distro", "arch", "--persistent", "--isolated-home", "--no-enter", "--yes")
+	if !strings.Contains(output, "distrobox is required but was not found") {
+		t.Fatalf("preflight output:\n%s", output)
+	}
+}
+
 func TestE2EPersistentLifecycle(t *testing.T) {
 	bin, env := prepareE2E(t)
 	name := uniqueName("persistent")
@@ -242,6 +326,17 @@ func runCLI(t *testing.T, bin string, env []string, args ...string) string {
 	return string(output)
 }
 
+func runCLIFailure(t *testing.T, bin string, env []string, args ...string) string {
+	t.Helper()
+	cmd := exec.Command(bin, args...)
+	cmd.Env = env
+	output, err := cmd.CombinedOutput()
+	if err == nil {
+		t.Fatalf("sandbox %s unexpectedly succeeded:\n%s", strings.Join(args, " "), output)
+	}
+	return string(output)
+}
+
 func cleanupSandbox(t *testing.T, bin string, env []string, name string) {
 	t.Helper()
 	remove := func() {
@@ -282,6 +377,17 @@ func assertMissing(t *testing.T, path string) {
 
 func uniqueName(prefix string) string {
 	return fmt.Sprintf("e2e-%s-%d-%d", prefix, os.Getpid(), atomic.AddUint64(&e2eSequence, 1))
+}
+
+func setEnv(env []string, key, value string) []string {
+	result := make([]string, 0, len(env)+1)
+	for _, entry := range env {
+		entryKey, _, _ := strings.Cut(entry, "=")
+		if entryKey != key {
+			result = append(result, entry)
+		}
+	}
+	return append(result, key+"="+value)
 }
 
 func replaceEnv(home, noColor string) []string {

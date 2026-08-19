@@ -148,7 +148,7 @@ La suite E2E opcional usa un pseudo-terminal y crea contenedores reales. Requier
 SANDBOX_E2E=1 go test -tags=integration ./...
 ```
 
-Cubre `doctor`, ciclo persistent (incluyendo `stop`), ciclo disposable y cleanup tras `Ctrl+C`.
+Cubre `doctor`, ciclo persistent (incluyendo `stop`), ciclo disposable, cleanup tras `Ctrl+C`, shared home, confirmaciones, colisiones, nombres inválidos y preflight sin runtime.
 
 Las variables de build están preparadas para versionado:
 
