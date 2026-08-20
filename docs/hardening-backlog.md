@@ -13,7 +13,7 @@ Scope: extend V1 E2E coverage without changing the rootless Podman isolation mod
 - the container and metadata are removed;
 - the managed home remains unchanged;
 - deleting the same metadata cannot remove that home accidentally;
-- the CLI output makes the retained home explicit.
+- the CLI output makes the retained home and its path explicit; this requires a CLI output change because the current command only prints `Sandbox deleted`.
 
 ### Re-enter after stop
 
@@ -27,6 +27,16 @@ Scope: extend V1 E2E coverage without changing the rootless Podman isolation mod
 - delete removes the container, metadata, and home.
 
 ## P1 — failure and UX boundaries
+
+### Create rollback after partial failure
+
+**Scenario**: force `podman create`, `podman start`, and metadata persistence to fail after partial resource creation. Use an integration seam or deterministic fake runtime where the real Podman failure cannot be forced safely.
+
+**Acceptance criteria**:
+
+- no container, metadata record, or managed home remains after each failure;
+- cleanup errors are preserved and actionable;
+- cleanup never removes a resource belonging to another sandbox attempt.
 
 ### Cancel destructive confirmation
 
@@ -70,7 +80,7 @@ Run the persistent `--no-enter` lifecycle for `ubuntu`, `fedora`, and `debian` i
 
 Keep this matrix opt-in or serialised because it downloads multiple images.
 
-## P2 — concurrency
+## P0 — concurrency and ownership
 
 ### Same-name create race
 
@@ -81,7 +91,10 @@ Run two `create` commands for the same valid name concurrently.
 - exactly one command succeeds;
 - the loser reports a collision;
 - no orphan container or home is left;
-- metadata describes the winner only.
+- metadata describes the winner only;
+- the loser cannot remove or mutate the winner's home; reserve the name/home atomically or make cleanup conditional on ownership.
+
+This is P0 because the current check-then-create flow can let the losing attempt delete the winner's home.
 
 ### Independent creates
 
