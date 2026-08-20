@@ -25,7 +25,7 @@ Asegúrate de que `~/.local/bin` esté en `$PATH`.
 Para instalar una release directamente desde GitHub:
 
 ```bash
-GOPRIVATE=github.com/hocicopollo02/* \\
+GOPRIVATE=github.com/hocicopollo02/* \
   go install github.com/hocicopollo02/sandbox@v0.1.0
 ```
 
