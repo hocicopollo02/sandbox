@@ -3,6 +3,7 @@ package podman
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"strings"
 	"time"
@@ -41,8 +42,16 @@ func (c *Client) Create(ctx context.Context, name, image, home string) error {
 	if err != nil {
 		cleanupCtx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
 		defer cancel()
-		_, _ = c.Runner.Run(cleanupCtx, "podman", "rm", "--force", name)
-		return commandError("start", name, output, err)
+		cleanupOutput, cleanupErr := c.Runner.Run(cleanupCtx, "podman", "rm", "--force", name)
+		startErr := commandError("start", name, output, err)
+		if cleanupErr == nil {
+			return startErr
+		}
+		cleanupDetail := strings.TrimSpace(string(cleanupOutput))
+		if cleanupDetail == "" {
+			return errors.Join(startErr, fmt.Errorf("could not clean up sandbox %q after failed start: %w", name, cleanupErr))
+		}
+		return errors.Join(startErr, fmt.Errorf("could not clean up sandbox %q after failed start: %s", name, cleanupDetail))
 	}
 	return nil
 }

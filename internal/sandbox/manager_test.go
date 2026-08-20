@@ -100,6 +100,30 @@ func TestCreateRefusesSymlinkedManagedHomes(t *testing.T) {
 	}
 }
 
+func TestCreateRefusesSymlinkedManagedHomeAncestor(t *testing.T) {
+	container := &fakeContainer{}
+	hostRoot := t.TempDir()
+	external := t.TempDir()
+	paths := metadata.PathsFor(hostRoot)
+	if err := os.Symlink(external, filepath.Join(hostRoot, ".local")); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.MkdirAll(paths.Homes, 0700); err != nil {
+		t.Fatal(err)
+	}
+	store := metadata.NewStore(paths)
+	manager := NewManager(store, container, &fakeInspector{})
+	distro, _ := FindDistribution("arch")
+	if _, err := manager.Create(context.Background(), CreateOptions{
+		Name: "unsafe-ancestor", Distribution: distro, Persistence: Persistent, HomeMode: IsolatedHome,
+	}); err == nil || !strings.Contains(err.Error(), "symlinked managed homes") {
+		t.Fatalf("Create() error = %v, want ancestor symlink rejection", err)
+	}
+	if len(container.created) != 0 {
+		t.Fatalf("container was created despite unsafe home ancestor: %v", container.created)
+	}
+}
+
 func TestCreateCleansHomeWhenContainerCreationFails(t *testing.T) {
 	container := &fakeContainer{createErr: errors.New("pull failed")}
 	manager, store := newTestManager(t, container)

@@ -3,6 +3,7 @@ package podman
 import (
 	"context"
 	"errors"
+	"strings"
 	"testing"
 
 	"github.com/pablo/sandbox/internal/sandbox"
@@ -45,6 +46,42 @@ func TestCreateUsesOnlyManagedHomeMount(t *testing.T) {
 	want := [][]string{
 		{"podman", "create", "--pull=missing", "--name", "gentle-ai", "--hostname", "gentle-ai", "--workdir", "/home/sandbox", "--env", "HOME=/home/sandbox", "--volume", "/tmp/managed-home:/home/sandbox", "archlinux:latest", "sleep", "infinity"},
 		{"podman", "start", "gentle-ai"},
+	}
+	if !sameCalls(runner.calls, want) {
+		t.Fatalf("calls = %#v, want %#v", runner.calls, want)
+	}
+}
+
+type failingStartRunner struct {
+	calls [][]string
+}
+
+func (r *failingStartRunner) Run(_ context.Context, name string, args ...string) ([]byte, error) {
+	r.calls = append(r.calls, append([]string{name}, args...))
+	switch args[0] {
+	case "start":
+		return []byte("start failed"), errors.New("start exit status 1")
+	case "rm":
+		return []byte("cleanup failed"), errors.New("cleanup exit status 1")
+	default:
+		return nil, nil
+	}
+}
+
+func (r *failingStartRunner) Attach(context.Context, string, ...string) error { return nil }
+func (r *failingStartRunner) LookPath(string) (string, error)                 { return "/bin/podman", nil }
+
+func TestCreateReportsCleanupFailureAfterStartFailure(t *testing.T) {
+	runner := &failingStartRunner{}
+	client := New(runner)
+	err := client.Create(context.Background(), "broken", "archlinux:latest", "")
+	if err == nil || !strings.Contains(err.Error(), "cleanup failed") {
+		t.Fatalf("Create() error = %v, want cleanup failure", err)
+	}
+	want := [][]string{
+		{"podman", "create", "--pull=missing", "--name", "broken", "--hostname", "broken", "--workdir", "/home/sandbox", "--env", "HOME=/home/sandbox", "archlinux:latest", "sleep", "infinity"},
+		{"podman", "start", "broken"},
+		{"podman", "rm", "--force", "broken"},
 	}
 	if !sameCalls(runner.calls, want) {
 		t.Fatalf("calls = %#v, want %#v", runner.calls, want)

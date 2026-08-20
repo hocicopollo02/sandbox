@@ -136,7 +136,6 @@ func (s *Store) ValidateHomesRoot() error {
 			if !info.IsDir() {
 				return fmt.Errorf("managed homes path is not a directory: %s", current)
 			}
-			return nil
 		case !errors.Is(err, os.ErrNotExist):
 			return fmt.Errorf("inspect managed homes directory: %w", err)
 		}
