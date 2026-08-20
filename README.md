@@ -22,6 +22,17 @@ install -Dm755 sandbox ~/.local/bin/sandbox
 
 Asegúrate de que `~/.local/bin` esté en `$PATH`.
 
+Para instalar una release directamente desde GitHub:
+
+```bash
+GOPRIVATE=github.com/hocicopollo02/* \\
+  go install github.com/hocicopollo02/sandbox@v0.1.0
+```
+
+El repositorio actual es privado, por lo que necesitas tener GitHub autenticado
+para Git. El binario se instala en `$GOBIN` o, si está vacío, en
+`$(go env GOPATH)/bin`.
+
 Comprueba la instalación:
 
 ```bash
