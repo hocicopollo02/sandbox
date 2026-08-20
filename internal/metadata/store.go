@@ -121,6 +121,7 @@ func (s *Store) Home(name string) string {
 
 // ValidateHomesRoot rejects symlinked or non-directory ancestors before a home
 // is created or passed to the container runtime.
+// ponytail: same-user TOCTOU remains; use a named Podman volume or VM for adversarial host isolation.
 func (s *Store) ValidateHomesRoot() error {
 	root, err := filepath.Abs(s.Paths.Homes)
 	if err != nil {
