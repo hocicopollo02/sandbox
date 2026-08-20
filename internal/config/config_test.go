@@ -6,7 +6,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/pablo/sandbox/internal/sandbox"
+	"github.com/hocicopollo02/sandbox/internal/sandbox"
 )
 
 func TestLoadDefaultsWhenConfigIsMissing(t *testing.T) {

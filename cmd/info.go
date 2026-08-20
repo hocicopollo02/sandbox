@@ -5,7 +5,7 @@ import (
 	"path/filepath"
 	"time"
 
-	"github.com/pablo/sandbox/internal/sandbox"
+	"github.com/hocicopollo02/sandbox/internal/sandbox"
 	"github.com/spf13/cobra"
 )
 

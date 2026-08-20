@@ -1,6 +1,6 @@
 package sandbox
 
-import "github.com/pablo/sandbox/internal/model"
+import "github.com/hocicopollo02/sandbox/internal/model"
 
 type Persistence = model.Persistence
 type HomeMode = model.HomeMode

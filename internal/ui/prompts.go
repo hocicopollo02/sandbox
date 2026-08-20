@@ -5,8 +5,8 @@ import (
 	"io"
 
 	"github.com/charmbracelet/huh"
-	"github.com/pablo/sandbox/internal/config"
-	"github.com/pablo/sandbox/internal/sandbox"
+	"github.com/hocicopollo02/sandbox/internal/config"
+	"github.com/hocicopollo02/sandbox/internal/sandbox"
 )
 
 type CreateAnswers struct {

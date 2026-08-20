@@ -8,12 +8,12 @@ import (
 	"os/signal"
 	"syscall"
 
-	"github.com/pablo/sandbox/internal/config"
-	"github.com/pablo/sandbox/internal/execx"
-	"github.com/pablo/sandbox/internal/metadata"
-	"github.com/pablo/sandbox/internal/podman"
-	core "github.com/pablo/sandbox/internal/sandbox"
-	"github.com/pablo/sandbox/internal/ui"
+	"github.com/hocicopollo02/sandbox/internal/config"
+	"github.com/hocicopollo02/sandbox/internal/execx"
+	"github.com/hocicopollo02/sandbox/internal/metadata"
+	"github.com/hocicopollo02/sandbox/internal/podman"
+	core "github.com/hocicopollo02/sandbox/internal/sandbox"
+	"github.com/hocicopollo02/sandbox/internal/ui"
 	"github.com/spf13/cobra"
 )
 

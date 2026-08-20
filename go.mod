@@ -1,4 +1,4 @@
-module github.com/pablo/sandbox
+module github.com/hocicopollo02/sandbox
 
 go 1.24
 

@@ -8,8 +8,8 @@ import (
 	"strings"
 	"time"
 
-	"github.com/pablo/sandbox/internal/execx"
-	"github.com/pablo/sandbox/internal/sandbox"
+	"github.com/hocicopollo02/sandbox/internal/execx"
+	"github.com/hocicopollo02/sandbox/internal/sandbox"
 )
 
 type Client struct {

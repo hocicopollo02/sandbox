@@ -3,8 +3,8 @@ package cmd
 import (
 	"fmt"
 
-	"github.com/pablo/sandbox/internal/sandbox"
-	"github.com/pablo/sandbox/internal/ui"
+	"github.com/hocicopollo02/sandbox/internal/sandbox"
+	"github.com/hocicopollo02/sandbox/internal/ui"
 	"github.com/spf13/cobra"
 )
 

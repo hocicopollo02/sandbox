@@ -6,7 +6,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/pablo/sandbox/internal/model"
+	"github.com/hocicopollo02/sandbox/internal/model"
 )
 
 func TestStoreRoundTripAndAtomicFileMode(t *testing.T) {

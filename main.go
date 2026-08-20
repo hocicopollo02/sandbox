@@ -4,7 +4,7 @@ import (
 	"fmt"
 	"os"
 
-	"github.com/pablo/sandbox/cmd"
+	"github.com/hocicopollo02/sandbox/cmd"
 )
 
 func main() {

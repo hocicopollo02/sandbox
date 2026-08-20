@@ -7,7 +7,7 @@ import (
 	"os"
 	"path/filepath"
 
-	"github.com/pablo/sandbox/internal/model"
+	"github.com/hocicopollo02/sandbox/internal/model"
 )
 
 var ErrNotFound = errors.New("sandbox metadata not found")

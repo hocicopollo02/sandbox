@@ -168,5 +168,5 @@ Cubre `doctor`, ciclo persistent (incluyendo `stop`), ciclo disposable, cleanup 
 Las variables de build están preparadas para versionado:
 
 ```bash
-go build -ldflags "-X github.com/pablo/sandbox/cmd.Version=0.1.0 -X github.com/pablo/sandbox/cmd.Commit=$(git rev-parse --short HEAD) -X github.com/pablo/sandbox/cmd.BuildDate=$(date -u +%Y-%m-%dT%H:%M:%SZ)" -o sandbox .
+go build -ldflags "-X github.com/hocicopollo02/sandbox/cmd.Version=0.1.0 -X github.com/hocicopollo02/sandbox/cmd.Commit=$(git rev-parse --short HEAD) -X github.com/hocicopollo02/sandbox/cmd.BuildDate=$(date -u +%Y-%m-%dT%H:%M:%SZ)" -o sandbox .
 ```

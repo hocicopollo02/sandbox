@@ -9,7 +9,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/pablo/sandbox/internal/metadata"
+	"github.com/hocicopollo02/sandbox/internal/metadata"
 )
 
 type ContainerClient interface {
