@@ -24,6 +24,9 @@ func newCreateCommand(appState *app) *cobra.Command {
 			return nil
 		},
 		RunE: func(cmd *cobra.Command, args []string) error {
+			if sharedHome {
+				return fmt.Errorf("shared home is disabled: sandbox never mounts the host home")
+			}
 			name := ""
 			if len(args) == 1 {
 				name = args[0]
@@ -39,11 +42,8 @@ func newCreateCommand(appState *app) *cobra.Command {
 			if isolatedHome {
 				homeMode = sandbox.IsolatedHome
 			}
-			if sharedHome {
-				homeMode = sandbox.SharedHome
-			}
 
-			interactive := len(args) == 0 || !cmd.Flags().Changed("distro") || (!persistent && !disposable) || (!isolatedHome && !sharedHome)
+			interactive := len(args) == 0 || !cmd.Flags().Changed("distro") || (!persistent && !disposable) || !isolatedHome
 			if interactive {
 				answers, err := ui.PromptCreate(appState.config, appState.in, appState.out)
 				if err != nil {
@@ -69,9 +69,6 @@ func newCreateCommand(appState *app) *cobra.Command {
 			if persistent && disposable {
 				return fmt.Errorf("choose only one of --persistent or --disposable")
 			}
-			if isolatedHome && sharedHome {
-				return fmt.Errorf("choose only one of --isolated-home or --shared-home")
-			}
 			if noEnter {
 				if persistence == sandbox.Disposable {
 					return fmt.Errorf("disposable sandboxes cannot use --no-enter")
@@ -84,16 +81,6 @@ func newCreateCommand(appState *app) *cobra.Command {
 			distroDef, ok := sandbox.FindDistribution(distro)
 			if !ok {
 				return fmt.Errorf("unknown distribution %q; choose arch, ubuntu, fedora or debian", distro)
-			}
-
-			if homeMode == sandbox.SharedHome && !yes {
-				confirmed, err := ui.ConfirmSharedHome(appState.in, appState.out)
-				if err != nil {
-					return err
-				}
-				if !confirmed {
-					return fmt.Errorf("shared home cancelled")
-				}
 			}
 			if interactive && !yes {
 				confirmed, err := ui.ConfirmCreate(name, appState.in, appState.out)
@@ -128,7 +115,7 @@ func newCreateCommand(appState *app) *cobra.Command {
 	cmd.Flags().BoolVar(&persistent, "persistent", false, "keep the sandbox after exit")
 	cmd.Flags().BoolVar(&disposable, "disposable", false, "remove the sandbox after exit")
 	cmd.Flags().BoolVar(&isolatedHome, "isolated-home", false, "use a managed isolated home")
-	cmd.Flags().BoolVar(&sharedHome, "shared-home", false, "use the host home directory")
+	cmd.Flags().BoolVar(&sharedHome, "shared-home", false, "deprecated: shared host home is disabled")
 	cmd.Flags().BoolVar(&noEnter, "no-enter", false, "create without entering (persistent only)")
 	cmd.Flags().BoolVarP(&yes, "yes", "y", false, "skip confirmations")
 	return cmd

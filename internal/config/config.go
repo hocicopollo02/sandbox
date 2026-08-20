@@ -71,7 +71,10 @@ func Load(home string) (Config, error) {
 			cfg.DefaultPersistence = persistence
 		case "default_home":
 			homeMode := sandbox.HomeMode(strings.ToLower(value))
-			if homeMode != sandbox.IsolatedHome && homeMode != sandbox.SharedHome {
+			if homeMode == sandbox.SharedHome {
+				return cfg, fmt.Errorf("shared home is disabled: sandbox never mounts the host home")
+			}
+			if homeMode != sandbox.IsolatedHome {
 				return cfg, fmt.Errorf("invalid default_home %q", value)
 			}
 			cfg.DefaultHome = homeMode

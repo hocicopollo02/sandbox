@@ -35,14 +35,6 @@ func runDoctor(appState *app) error {
 	} else {
 		appState.ui.Success("Podman installed")
 	}
-	if err := appState.distrobox.Available(); err != nil {
-		appState.ui.Failure("Distrobox not installed")
-		fmt.Fprintln(appState.errOut, err)
-		allGood = false
-	} else {
-		appState.ui.Success("Distrobox installed")
-	}
-
 	if podmanOK {
 		if _, err := appState.podman.Info(context.Background()); err != nil {
 			appState.ui.Failure("Podman runtime working")

@@ -110,7 +110,10 @@ func (o CreateOptions) Validate() error {
 	if o.Persistence != Disposable && o.Persistence != Persistent {
 		return fmt.Errorf("invalid persistence %q", o.Persistence)
 	}
-	if o.HomeMode != IsolatedHome && o.HomeMode != SharedHome {
+	if o.HomeMode == SharedHome {
+		return fmt.Errorf("shared home is disabled: sandbox never mounts the host home")
+	}
+	if o.HomeMode != IsolatedHome {
 		return fmt.Errorf("invalid home mode %q", o.HomeMode)
 	}
 	if o.Persistence == Disposable && !o.AutoEnter {

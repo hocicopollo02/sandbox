@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"strings"
+	"time"
 
 	"github.com/pablo/sandbox/internal/execx"
 	"github.com/pablo/sandbox/internal/sandbox"
@@ -19,6 +20,68 @@ func New(runner execx.Runner) *Client { return &Client{Runner: runner} }
 func (c *Client) Available() error {
 	if _, err := c.Runner.LookPath("podman"); err != nil {
 		return fmt.Errorf("podman is required but was not found; on Arch/Omarchy run: sudo pacman -S podman")
+	}
+	return nil
+}
+
+func (c *Client) Create(ctx context.Context, name, image, home string) error {
+	args := []string{
+		"create", "--pull=missing", "--name", name, "--hostname", name,
+		"--workdir", "/home/sandbox", "--env", "HOME=/home/sandbox",
+	}
+	if home != "" {
+		args = append(args, "--volume", home+":/home/sandbox")
+	}
+	args = append(args, image, "sleep", "infinity")
+	output, err := c.Runner.Run(ctx, "podman", args...)
+	if err != nil {
+		return commandError("create", name, output, err)
+	}
+	output, err = c.Runner.Run(ctx, "podman", "start", name)
+	if err != nil {
+		cleanupCtx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+		defer cancel()
+		_, _ = c.Runner.Run(cleanupCtx, "podman", "rm", "--force", name)
+		return commandError("start", name, output, err)
+	}
+	return nil
+}
+
+func (c *Client) Enter(ctx context.Context, name string) error {
+	status, err := c.Status(ctx, name)
+	if err != nil {
+		return err
+	}
+	if status == sandbox.Missing {
+		return fmt.Errorf("sandbox %q does not exist in the container runtime", name)
+	}
+	if status == sandbox.Unknown {
+		return fmt.Errorf("could not determine the status of sandbox %q", name)
+	}
+	if status == sandbox.Stopped {
+		output, err := c.Runner.Run(ctx, "podman", "start", name)
+		if err != nil {
+			return commandError("start", name, output, err)
+		}
+	}
+	if err := c.Runner.Attach(ctx, "podman", "exec", "--interactive", "--tty", name, "/bin/bash"); err != nil {
+		return fmt.Errorf("could not enter sandbox %q: %w", name, err)
+	}
+	return nil
+}
+
+func (c *Client) Stop(ctx context.Context, name string) error {
+	output, err := c.Runner.Run(ctx, "podman", "stop", "--time", "10", name)
+	if err != nil {
+		return commandError("stop", name, output, err)
+	}
+	return nil
+}
+
+func (c *Client) Delete(ctx context.Context, name string) error {
+	output, err := c.Runner.Run(ctx, "podman", "rm", "--force", name)
+	if err != nil {
+		return commandError("delete", name, output, err)
 	}
 	return nil
 }
@@ -72,6 +135,14 @@ func (c *Client) Rootless(ctx context.Context) (bool, error) {
 		return false, fmt.Errorf("unexpected Podman rootless response %q", value)
 	}
 	return info.Host.Security.Rootless, nil
+}
+
+func commandError(action, name string, output []byte, err error) error {
+	detail := strings.TrimSpace(string(output))
+	if detail == "" {
+		return fmt.Errorf("could not %s sandbox %q: %w; run with --verbose for details", action, name, err)
+	}
+	return fmt.Errorf("could not %s sandbox %q: %s", action, name, detail)
 }
 
 func isMissing(output string) bool {

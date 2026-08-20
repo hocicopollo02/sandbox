@@ -48,7 +48,6 @@ func PromptCreate(defaults config.Config, in io.Reader, out io.Writer) (CreateAn
 		huh.NewGroup(
 			huh.NewSelect[string]().Title("Home").Options(
 				huh.NewOption("Isolated", string(sandbox.IsolatedHome)),
-				huh.NewOption("Shared", string(sandbox.SharedHome)),
 			).Value(&answers.HomeMode),
 		),
 		huh.NewGroup(
@@ -68,17 +67,6 @@ func ConfirmCreate(name string, in io.Reader, out io.Writer) (bool, error) {
 	)).WithInput(in).WithOutput(out)
 	if err := form.Run(); err != nil {
 		return false, fmt.Errorf("creation confirmation: %w", err)
-	}
-	return confirmed, nil
-}
-
-func ConfirmSharedHome(in io.Reader, out io.Writer) (bool, error) {
-	confirmed := false
-	form := huh.NewForm(huh.NewGroup(
-		huh.NewConfirm().Title("Shared home gives the container access to files and configuration from your host home directory. Continue?").Affirmative("Yes").Negative("No").Value(&confirmed),
-	)).WithInput(in).WithOutput(out)
-	if err := form.Run(); err != nil {
-		return false, fmt.Errorf("shared home confirmation: %w", err)
 	}
 	return confirmed, nil
 }

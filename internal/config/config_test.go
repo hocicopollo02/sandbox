@@ -3,6 +3,7 @@ package config
 import (
 	"os"
 	"path/filepath"
+	"strings"
 	"testing"
 
 	"github.com/pablo/sandbox/internal/sandbox"
@@ -26,7 +27,7 @@ func TestLoadConfigValues(t *testing.T) {
 	}
 	if err := os.WriteFile(path, []byte(`default_distro = "ubuntu"
 default_persistence = "persistent"
-default_home = "shared"
+default_home = "isolated"
 auto_enter = false
 `), 0600); err != nil {
 		t.Fatal(err)
@@ -35,7 +36,22 @@ auto_enter = false
 	if err != nil {
 		t.Fatal(err)
 	}
-	if cfg.DefaultDistro != "ubuntu" || cfg.DefaultPersistence != sandbox.Persistent || cfg.DefaultHome != sandbox.SharedHome || cfg.AutoEnter {
+	if cfg.DefaultDistro != "ubuntu" || cfg.DefaultPersistence != sandbox.Persistent || cfg.DefaultHome != sandbox.IsolatedHome || cfg.AutoEnter {
 		t.Fatalf("loaded config = %#v", cfg)
+	}
+}
+
+func TestLoadRejectsSharedHome(t *testing.T) {
+	home := t.TempDir()
+	path := PathFor(home)
+	if err := os.MkdirAll(filepath.Dir(path), 0700); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(path, []byte("default_home = \"shared\"\n"), 0600); err != nil {
+		t.Fatal(err)
+	}
+	_, err := Load(home)
+	if err == nil || !strings.Contains(err.Error(), "shared home is disabled") {
+		t.Fatalf("Load() error = %v", err)
 	}
 }

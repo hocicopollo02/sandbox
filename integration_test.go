@@ -71,43 +71,30 @@ func TestE2EWizardIsStepwise(t *testing.T) {
 	}
 }
 
-func TestE2ESharedHomeRequiresConfirmation(t *testing.T) {
+func TestE2ESharedHomeIsRejected(t *testing.T) {
 	bin, env := prepareE2E(t)
-	name := uniqueName("shared-confirm")
-	cleanupSandbox(t, bin, env, name)
-
-	process := startInteractive(t, bin, env, "create", name, "--distro", "arch", "--persistent", "--shared-home")
-	process.waitFor(t, "y Yes", 20*time.Second, nil)
-	process.write("n")
-	process.wait(t, 20*time.Second)
-	if !strings.Contains(process.outputString(), "shared home cancelled") {
-		t.Fatalf("confirmation output:\n%s", process.outputString())
+	name := uniqueName("shared-rejected")
+	output := runCLIFailure(t, bin, env, "create", name, "--distro", "arch", "--persistent", "--shared-home", "--no-enter", "--yes")
+	if !strings.Contains(output, "shared home is disabled") {
+		t.Fatalf("shared home output:\n%s", output)
 	}
 	assertContainerMissing(t, env, name)
 }
 
-func TestE2ESharedHomeWithYesDoesNotCreateManagedHome(t *testing.T) {
+func TestE2EContainerCannotWriteHostSystemPaths(t *testing.T) {
 	bin, env := prepareE2E(t)
-	name := uniqueName("shared")
-	managedHome := filepath.Join(envHome(env), ".local", "share", "sandbox", "homes", name)
-	metadata := filepath.Join(envHome(env), ".local", "share", "sandbox", "sandboxes", name+".json")
+	name := uniqueName("host-isolation")
 	cleanupSandbox(t, bin, env, name)
+	runCLI(t, bin, env, "create", name, "--distro", "arch", "--persistent", "--isolated-home", "--no-enter", "--yes")
 
-	runCLI(t, bin, env, "create", name, "--distro", "arch", "--persistent", "--shared-home", "--no-enter", "--yes")
-	info := runCLI(t, bin, env, "info", name)
-	if !strings.Contains(info, "Home          shared") || !strings.Contains(info, "Home path     -") {
-		t.Fatalf("shared home info:\n%s", info)
+	marker := "/usr/local/bin/sandbox-e2e-" + name
+	command := exec.Command("podman", "exec", name, "/bin/sh", "-c", "printf protected > /usr/local/bin/"+filepath.Base(marker))
+	command.Env = env
+	if output, err := command.CombinedOutput(); err != nil {
+		t.Fatalf("write inside container: %v\n%s", err, output)
 	}
-	assertMissing(t, managedHome)
-	data, err := os.ReadFile(metadata)
-	if err != nil {
-		t.Fatal(err)
-	}
-	if strings.Contains(string(data), "home_path") {
-		t.Fatalf("shared metadata contains an isolated home path: %s", data)
-	}
+	assertMissing(t, marker)
 	runCLI(t, bin, env, "delete", name, "--yes")
-	assertContainerMissing(t, env, name)
 }
 
 func TestE2EInvalidNameIsRejectedBeforeRuntime(t *testing.T) {
@@ -134,7 +121,7 @@ func TestE2EUnmanagedContainerCollisionIsRejected(t *testing.T) {
 	bin, env := prepareE2E(t)
 	name := uniqueName("unmanaged")
 	cleanupSandbox(t, bin, env, name)
-	create := exec.Command("distrobox", "create", "--yes", "--name", name, "--image", "docker.io/library/archlinux:latest")
+	create := exec.Command("podman", "create", "--pull=missing", "--name", name, "docker.io/library/archlinux:latest", "sleep", "infinity")
 	create.Env = env
 	if output, err := create.CombinedOutput(); err != nil {
 		t.Fatalf("create unmanaged container: %v\n%s", err, output)
@@ -150,7 +137,7 @@ func TestE2EPreflightExplainsMissingRuntime(t *testing.T) {
 	missingPath := t.TempDir()
 	env = setEnv(env, "PATH", missingPath)
 	output := runCLIFailure(t, bin, env, "create", uniqueName("missing-runtime"), "--distro", "arch", "--persistent", "--isolated-home", "--no-enter", "--yes")
-	if !strings.Contains(output, "distrobox is required but was not found") {
+	if !strings.Contains(output, "podman is required but was not found") {
 		t.Fatalf("preflight output:\n%s", output)
 	}
 }
@@ -173,7 +160,7 @@ func TestE2EPersistentLifecycle(t *testing.T) {
 	if err := json.Unmarshal([]byte(runCLI(t, bin, env, "list", "--json")), &entries); err != nil {
 		t.Fatalf("list --json: %v", err)
 	}
-	if len(entries) != 1 || entries[0].Name != name || entries[0].Status != "stopped" {
+	if len(entries) != 1 || entries[0].Name != name || entries[0].Status != "running" {
 		t.Fatalf("list entries = %#v", entries)
 	}
 	info := runCLI(t, bin, env, "info", name)
@@ -246,12 +233,12 @@ func TestE2EDisposableInterruptCleansUp(t *testing.T) {
 func prepareE2E(t *testing.T) (string, []string) {
 	t.Helper()
 	if os.Getenv("SANDBOX_E2E") != "1" {
-		t.Skip("set SANDBOX_E2E=1 to run Podman/Distrobox integration tests")
+		t.Skip("set SANDBOX_E2E=1 to run Podman integration tests")
 	}
 	if os.Geteuid() == 0 {
 		t.Skip("integration tests require a non-root user")
 	}
-	for _, command := range []string{"podman", "distrobox"} {
+	for _, command := range []string{"podman"} {
 		if _, err := exec.LookPath(command); err != nil {
 			t.Skipf("%s is not installed", command)
 		}
@@ -310,7 +297,7 @@ func (p *interactiveProcess) write(input string) {
 
 func waitForShell(t *testing.T, process *interactiveProcess) {
 	t.Helper()
-	process.waitFor(t, "]$ ", 60*time.Second, nil)
+	process.waitFor(t, "# ", 60*time.Second, nil)
 }
 
 func (p *interactiveProcess) waitFor(t *testing.T, needle string, timeout time.Duration, trigger func()) {

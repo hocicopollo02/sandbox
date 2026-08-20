@@ -9,7 +9,6 @@ import (
 	"syscall"
 
 	"github.com/pablo/sandbox/internal/config"
-	"github.com/pablo/sandbox/internal/distrobox"
 	"github.com/pablo/sandbox/internal/execx"
 	"github.com/pablo/sandbox/internal/metadata"
 	"github.com/pablo/sandbox/internal/podman"
@@ -25,16 +24,15 @@ var (
 )
 
 type app struct {
-	manager   *core.Manager
-	config    config.Config
-	runner    *execx.CommandRunner
-	podman    *podman.Client
-	distrobox *distrobox.Client
-	ui        ui.Printer
-	in        io.Reader
-	out       io.Writer
-	errOut    io.Writer
-	verbose   bool
+	manager *core.Manager
+	config  config.Config
+	runner  *execx.CommandRunner
+	podman  *podman.Client
+	ui      ui.Printer
+	in      io.Reader
+	out     io.Writer
+	errOut  io.Writer
+	verbose bool
 }
 
 func NewRootCommand(home string, in io.Reader, out, errOut io.Writer) (*cobra.Command, error) {
@@ -52,11 +50,10 @@ func NewRootCommand(home string, in io.Reader, out, errOut io.Writer) (*cobra.Co
 		out:    out,
 		errOut: errOut,
 	}
-	appState.distrobox = distrobox.New(runner)
 	appState.podman = podman.New(runner)
 	appState.manager = core.NewManager(
 		metadata.NewStore(paths),
-		appState.distrobox,
+		appState.podman,
 		appState.podman,
 	)
 

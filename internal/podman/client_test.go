@@ -17,6 +17,73 @@ func (f fakeRunner) Run(context.Context, string, ...string) ([]byte, error) { re
 func (f fakeRunner) Attach(context.Context, string, ...string) error        { return f.err }
 func (f fakeRunner) LookPath(string) (string, error)                        { return "/bin/tool", nil }
 
+type recordingRunner struct {
+	calls [][]string
+}
+
+func (r *recordingRunner) Run(_ context.Context, name string, args ...string) ([]byte, error) {
+	r.calls = append(r.calls, append([]string{name}, args...))
+	if len(args) > 0 && args[0] == "inspect" {
+		return []byte("exited\n"), nil
+	}
+	return nil, nil
+}
+
+func (r *recordingRunner) Attach(_ context.Context, name string, args ...string) error {
+	r.calls = append(r.calls, append([]string{name}, args...))
+	return nil
+}
+
+func (r *recordingRunner) LookPath(string) (string, error) { return "/bin/podman", nil }
+
+func TestCreateUsesOnlyManagedHomeMount(t *testing.T) {
+	runner := &recordingRunner{}
+	client := New(runner)
+	if err := client.Create(context.Background(), "gentle-ai", "archlinux:latest", "/tmp/managed-home"); err != nil {
+		t.Fatal(err)
+	}
+	want := [][]string{
+		{"podman", "create", "--pull=missing", "--name", "gentle-ai", "--hostname", "gentle-ai", "--workdir", "/home/sandbox", "--env", "HOME=/home/sandbox", "--volume", "/tmp/managed-home:/home/sandbox", "archlinux:latest", "sleep", "infinity"},
+		{"podman", "start", "gentle-ai"},
+	}
+	if !sameCalls(runner.calls, want) {
+		t.Fatalf("calls = %#v, want %#v", runner.calls, want)
+	}
+}
+
+func TestEnterStartsStoppedContainerAndUsesExec(t *testing.T) {
+	runner := &recordingRunner{}
+	client := New(runner)
+	if err := client.Enter(context.Background(), "gentle-ai"); err != nil {
+		t.Fatal(err)
+	}
+	want := [][]string{
+		{"podman", "inspect", "--format", "{{.State.Status}}", "gentle-ai"},
+		{"podman", "start", "gentle-ai"},
+		{"podman", "exec", "--interactive", "--tty", "gentle-ai", "/bin/bash"},
+	}
+	if !sameCalls(runner.calls, want) {
+		t.Fatalf("calls = %#v, want %#v", runner.calls, want)
+	}
+}
+
+func sameCalls(left, right [][]string) bool {
+	if len(left) != len(right) {
+		return false
+	}
+	for i := range left {
+		if len(left[i]) != len(right[i]) {
+			return false
+		}
+		for j := range left[i] {
+			if left[i][j] != right[i][j] {
+				return false
+			}
+		}
+	}
+	return true
+}
+
 func TestStatusMapsPodmanOutput(t *testing.T) {
 	for _, test := range []struct {
 		output string

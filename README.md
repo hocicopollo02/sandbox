@@ -1,6 +1,6 @@
 # sandbox
 
-CLI local para crear entornos Linux desechables o persistentes usando **Distrobox + Podman rootless**. Está pensada para Omarchy/Arch Linux: prueba CLIs, proyectos y dependencias sin llenar el host.
+CLI local para crear entornos Linux desechables o persistentes usando **Podman rootless directo**. Está pensada para Omarchy/Arch Linux: prueba CLIs, proyectos y dependencias sin modificar el sistema host.
 
 > **Limitación:** no es una frontera de seguridad fuerte ni un sustituto de una VM. No la uses para malware o software no confiable.
 
@@ -13,7 +13,7 @@ Placeholder para screenshots/asciinema de `sandbox create`.
 En Omarchy/Arch:
 
 ```bash
-sudo pacman -S podman distrobox
+sudo pacman -S podman
 git clone <repo>
 cd sandbox
 go build -o sandbox .
@@ -80,13 +80,13 @@ Aliases: `ls`, `shell`, `rm`.
 ```text
 --distro arch|ubuntu|fedora|debian
 --persistent | --disposable
---isolated-home | --shared-home
+--isolated-home
 --no-enter
 --yes
 --verbose
 ```
 
-`--shared-home` expone el home del host al contenedor y siempre requiere confirmación, salvo `--yes`.
+El home del host nunca se monta. `--shared-home` se conserva solo para devolver un error claro a scripts antiguos.
 
 ## Datos y configuración
 
@@ -112,9 +112,10 @@ La metadata no se usa como única fuente de verdad: el estado se contrasta con P
 ## Seguridad y aislamiento
 
 - Ejecuta Podman como usuario normal/rootless.
-- No monta `/` del host ni `.ssh` explícitamente.
+- No monta `/` del host, `$HOME`, `/run/host`, `/usr/local`, sockets ni `.ssh`.
 - El home aislado es el comportamiento predeterminado.
-- Distrobox comparte más integración con el host de la que tendría una VM.
+- Podman guarda las capas del contenedor en su storage local; eso es necesario para que exista el contenedor, pero no instala archivos en el filesystem del host.
+- El contenedor no es una frontera de seguridad frente a exploits del kernel; usa una VM para software no confiable.
 - Para software no confiable, drivers, kernel, systemd o cambios de red del host, usa una máquina virtual.
 
 ## Troubleshooting
@@ -122,12 +123,12 @@ La metadata no se usa como única fuente de verdad: el estado se contrasta con P
 Si falta el runtime:
 
 ```text
-Distrobox is required but was not found.
+Podman is required but was not found.
 
-sudo pacman -S distrobox podman
+sudo pacman -S podman
 ```
 
-Ejecuta `sandbox doctor` para revisar Podman, rootless, Distrobox y `/etc/subuid`/`/etc/subgid`. Usa `--verbose` para ver los comandos externos ejecutados.
+Ejecuta `sandbox doctor` para revisar Podman, rootless y `/etc/subuid`/`/etc/subgid`. Usa `--verbose` para ver los comandos externos ejecutados.
 
 Si una creación falla, la CLI intenta limpiar el home y el contenedor creados durante esa operación. Los homes aislados solo se borran dentro del directorio gestionado por `sandbox`.
 
@@ -156,13 +157,13 @@ Antes de cada push ejecutará `go test ./...` y `go vet ./...`. Los E2E no corre
 SANDBOX_E2E=1 git push
 ```
 
-La suite E2E opcional usa un pseudo-terminal y crea contenedores reales. Requiere Podman rootless, Distrobox, red y permiso para descargar la imagen. Se activa explícitamente para no ejecutar contenedores durante un test normal:
+La suite E2E opcional usa un pseudo-terminal y crea contenedores reales. Requiere Podman rootless, red y permiso para descargar la imagen. Se activa explícitamente para no ejecutar contenedores durante un test normal:
 
 ```bash
 SANDBOX_E2E=1 go test -tags=integration ./...
 ```
 
-Cubre `doctor`, ciclo persistent (incluyendo `stop`), ciclo disposable, cleanup tras `Ctrl+C`, shared home, confirmaciones, colisiones, nombres inválidos y preflight sin runtime.
+Cubre `doctor`, ciclo persistent (incluyendo `stop`), ciclo disposable, cleanup tras `Ctrl+C`, rechazo de shared home, confirmaciones, colisiones, nombres inválidos, aislamiento de rutas del host y preflight sin runtime.
 
 Las variables de build están preparadas para versionado:
 

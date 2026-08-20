@@ -1,10 +1,14 @@
 # PRD — Sandbox CLI para Omarchy
 
+> **Revisión vigente (2026-08-20): aislamiento del host**
+>
+> La implementación V1 usa **Podman rootless directamente**, no Distrobox. El contenedor no monta el `$HOME` del host, `/run/host`, `/usr/local`, sockets del host ni servicios `systemd --user`. Solo se monta el home gestionado por `sandbox` cuando corresponde. `--shared-home` queda deshabilitado. Cualquier sección posterior que describa Distrobox o shared home es histórica y queda supersedida por esta decisión.
+
 ## 1. Resumen
 
-Construir una CLI llamada `sandbox` para Omarchy/Arch Linux que permita crear y administrar entornos Linux aislados basados en contenedores para probar herramientas de software antes de instalarlas en el sistema host.
+Construir una CLI llamada `sandbox` para Omarchy/Arch Linux que permita crear y administrar entornos Linux aislados basados en contenedores para probar herramientas de software sin instalarlas en el sistema host.
 
-La CLI debe actuar como una capa de experiencia de usuario sobre **Podman + Distrobox**. No debe implementar un runtime de contenedores propio.
+La CLI debe actuar como una capa de experiencia de usuario sobre **Podman rootless**. No debe implementar un runtime OCI propio.
 
 El objetivo principal es que un usuario pueda ejecutar:
 
@@ -53,7 +57,7 @@ Entering gentle-ai...
 
 ## 2. Contexto
 
-El sistema host objetivo es **Omarchy**, basado en Arch Linux.
+El sistema host objetivo es **Omarchy**, basado en Arch Linux. La herramienta debe evitar modificaciones del host fuera de su metadata, storage del runtime y homes gestionados.
 
 El usuario quiere evaluar herramientas como:
 
@@ -88,7 +92,7 @@ La herramienta debe permitir:
 9. Mantener una UX muy sencilla.
 10. Funcionar completamente como usuario normal/rootless.
 11. No requerir Docker daemon ni privilegios permanentes.
-12. Mantener la lógica de contenedores delegada a Distrobox/Podman.
+12. Mantener la lógica de contenedores delegada a Podman.
 
 ---
 
@@ -99,7 +103,6 @@ No implementar:
 - runtime OCI propio;
 - VM manager;
 - reemplazo de Podman;
-- reemplazo de Distrobox;
 - Kubernetes;
 - gestión de Docker Compose;
 - sandbox de seguridad para ejecutar malware;
@@ -152,7 +155,6 @@ La herramienta depende de:
 
 ```text
 podman
-distrobox
 ```
 
 La CLI debe detectar automáticamente si están instalados.
@@ -170,18 +172,15 @@ User
 sandbox CLI
  │
  ▼
-Distrobox
- │
- ▼
-Podman
+Podman rootless
  │
  ▼
 Linux container
 ```
 
-`sandbox` no debe interactuar directamente con namespaces, cgroups o OCI salvo cuando sea necesario obtener información que Distrobox no exponga adecuadamente.
+`sandbox` no debe interactuar directamente con namespaces, cgroups u OCI. Debe delegar la creación y gestión a comandos de Podman.
 
-Preferir siempre comandos de Distrobox.
+No montar `$HOME`, `/run/host`, `/usr/local`, sockets o servicios del host. El único bind mount permitido es el home gestionado por `sandbox`.
 
 Podman puede utilizarse para inspección del estado cuando resulte conveniente.
 
@@ -292,7 +291,7 @@ El contenedor debe eliminarse automáticamente al finalizar la sesión.
 Conceptualmente equivalente a:
 
 ```bash
-distrobox ephemeral
+podman run --rm
 ```
 
 Al salir:
@@ -383,33 +382,25 @@ Ejemplo:
 ~/.local/share/sandbox/homes/gentle-ai
 ```
 
-Distrobox debe crearse mediante un mecanismo equivalente a:
+Podman debe crear el contenedor mediante un mecanismo equivalente a:
 
 ```bash
-distrobox create \
+podman create \
   --name gentle-ai \
-  --image archlinux:latest \
-  --home ~/.local/share/sandbox/homes/gentle-ai
+  --hostname gentle-ai \
+  --workdir /home/sandbox \
+  --env HOME=/home/sandbox \
+  --volume ~/.local/share/sandbox/homes/gentle-ai:/home/sandbox \
+  docker.io/library/archlinux:latest sleep infinity
 ```
 
-Este debe ser el comportamiento predeterminado.
+Este debe ser el comportamiento predeterminado. No se permiten otros bind mounts del host.
 
 ---
 
 ## Shared
 
-Permitir utilizar la integración habitual de Distrobox con el home del host.
-
-Debe mostrarse una advertencia:
-
-```text
-Shared home gives the container access to files and configuration
-from your host home directory.
-
-Continue?
-```
-
-El usuario debe confirmar.
+Deshabilitado en la V1. El home del host nunca se monta porque permitiría que instaladores modifiquen el sistema local.
 
 ---
 
@@ -433,7 +424,7 @@ Yes
 Si se selecciona Yes, ejecutar automáticamente:
 
 ```bash
-distrobox enter <name>
+podman exec --interactive --tty <name> /bin/bash
 ```
 
 ---
@@ -466,7 +457,6 @@ Opciones esperadas:
 --persistent
 --disposable
 --isolated-home
---shared-home
 --no-enter
 ```
 
@@ -528,7 +518,7 @@ sandbox enter gentle-ai
 Debe ejecutar:
 
 ```bash
-distrobox enter gentle-ai
+podman exec --interactive --tty gentle-ai /bin/bash
 ```
 
 Si no existe:
@@ -565,9 +555,7 @@ sandbox stop gentle-ai
 
 Debe detener el contenedor sin eliminarlo.
 
-Idealmente utilizar Distrobox.
-
-Fallback mediante Podman únicamente si Distrobox no permite realizar la operación de forma apropiada.
+Utilizar Podman directamente; no existe runtime alternativo.
 
 ---
 
@@ -678,7 +666,7 @@ Ejemplo de metadata:
 
 La metadata no debe considerarse la única fuente de verdad para saber si un contenedor existe.
 
-Contrastar con Distrobox/Podman cuando sea necesario.
+Contrastar con Podman cuando sea necesario.
 
 ---
 
@@ -720,7 +708,6 @@ Sandbox Doctor
 
 ✓ Podman installed
 ✓ Podman rootless
-✓ Distrobox installed
 ✓ User namespaces configured
 ✓ Container runtime working
 
@@ -730,7 +717,6 @@ Everything looks good.
 Comprobar:
 
 - existencia de `podman`;
-- existencia de `distrobox`;
 - Podman funciona;
 - Podman funciona rootless;
 - existencia/configuración de `/etc/subuid`;
@@ -740,11 +726,11 @@ Comprobar:
 Si algo falla:
 
 ```text
-✗ Distrobox not installed
+✗ Podman not installed
 
 Install on Arch/Omarchy with:
 
-sudo pacman -S distrobox
+sudo pacman -S podman
 ```
 
 No ejecutar instalaciones automáticamente.
@@ -757,7 +743,6 @@ Antes de `create`, comprobar:
 
 ```text
 podman
-distrobox
 ```
 
 Si falta alguno, abortar elegantemente.
@@ -765,11 +750,11 @@ Si falta alguno, abortar elegantemente.
 Ejemplo:
 
 ```text
-Distrobox is required but was not found.
+Podman is required but was not found.
 
 On Omarchy/Arch:
 
-  sudo pacman -S distrobox podman
+  sudo pacman -S podman
 ```
 
 ---
@@ -778,7 +763,7 @@ On Omarchy/Arch:
 
 La CLI debe dejar claro que:
 
-> Distrobox containers are intended for environment isolation and convenience, not as a strong security boundary.
+> Podman rootless evita modificaciones del filesystem del host fuera de los recursos gestionados por `sandbox`, pero no es una frontera de seguridad fuerte frente a exploits del kernel. Para software no confiable usa una VM.
 
 No presentarlo como sandbox para software malicioso.
 
@@ -786,13 +771,13 @@ Para herramientas no confiables debería mostrarse eventualmente una recomendaci
 
 Especial atención a:
 
-- no montar `/` del host;
+- no montar `$HOME` del host;
+- no montar `/run/host`, `/usr/local` ni sockets del host;
 - no usar `--privileged`;
 - no ejecutar Podman como root;
 - no usar `sudo podman`;
 - isolated home por defecto;
 - no montar `.ssh` explícitamente;
-- evitar compartir sockets sensibles;
 - no eliminar rutas fuera del directorio administrado.
 
 ---
@@ -821,7 +806,7 @@ Si Podman no está configurado correctamente en rootless, `sandbox doctor` deber
 
 # 24. Manejo de procesos
 
-Al ejecutar Distrobox/Podman:
+Al ejecutar Podman:
 
 - conectar stdin/stdout/stderr cuando corresponda;
 - propagar correctamente Ctrl+C;
@@ -834,13 +819,13 @@ Al ejecutar Distrobox/Podman:
 Correcto:
 
 ```go
-exec.Command("distrobox", "enter", name)
+exec.Command("podman", "exec", "--interactive", "--tty", name, "/bin/bash")
 ```
 
 Evitar:
 
 ```go
-exec.Command("bash", "-c", "distrobox enter "+name)
+exec.Command("podman", "exec", "--interactive", "--tty", name, "/bin/bash")
 ```
 
 ---
@@ -957,8 +942,6 @@ sandbox/
 │   └── version.go
 │
 ├── internal/
-│   ├── distrobox/
-│   │   └── client.go
 │   ├── podman/
 │   │   └── client.go
 │   ├── sandbox/
@@ -1047,20 +1030,20 @@ No eliminar recursos que existieran previamente.
 
 # 32. Disposable implementation
 
-La implementación de sandboxes disposable debe favorecer `distrobox ephemeral`.
-
-Sin embargo, si esta funcionalidad impide ofrecer nombres, homes aislados u otra UX necesaria, se permite implementar disposable como:
+La implementación de sandboxes disposable debe usar contenedores Podman temporales y cleanup explícito:
 
 ```text
-create regular distrobox
+podman create
 ↓
-enter
+podman start
+↓
+podman exec
 ↓
 on exit
 ↓
-delete container
+podman rm --force
 ↓
-delete home
+delete managed home
 ```
 
 La solución elegida debe:
@@ -1152,7 +1135,7 @@ Debe existir cobertura razonable para:
 - mapping de distros;
 - metadata;
 - configuración;
-- generación de argumentos de Distrobox;
+- generación de argumentos de Podman;
 - protección del borrado de homes;
 - interpretación del estado;
 - cleanup tras errores.
@@ -1201,7 +1184,7 @@ Con:
 mostrar:
 
 ```text
-[distrobox] distrobox create ...
+[podman] podman create ...
 [podman] podman inspect ...
 ```
 
@@ -1282,7 +1265,7 @@ Pero evitar dependencias internas específicas de Omarchy si no son necesarias.
 Instalación de runtime en el README:
 
 ```bash
-sudo pacman -S podman distrobox
+sudo pacman -S podman
 ```
 
 No modificar automáticamente paquetes del sistema.
@@ -1300,7 +1283,7 @@ Debe contener:
 5. quick start;
 6. comandos;
 7. disposable vs persistent;
-8. isolated vs shared home;
+8. isolated home;
 9. seguridad;
 10. troubleshooting;
 11. desarrollo.
@@ -1308,7 +1291,7 @@ Debe contener:
 Quick start:
 
 ```bash
-sudo pacman -S podman distrobox
+sudo pacman -S podman
 
 git clone <repo>
 cd sandbox
@@ -1438,8 +1421,8 @@ No dedicar tiempo inicialmente a features futuras.
 Tomar estas decisiones como requisitos del producto:
 
 ```text
-Runtime                  Podman
-Container UX             Distrobox
+Runtime                  Podman rootless
+Container UX             Podman abstraction
 Language                 Go
 CLI framework            Cobra
 Interactive prompts      Huh
@@ -1470,7 +1453,6 @@ volumes
 OCI
 namespaces
 Podman flags
-Distrobox syntax
 ```
 
 La CLI debe ocultar esa complejidad y presentar simplemente:
