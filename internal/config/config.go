@@ -41,7 +41,7 @@ func Load(home string) (Config, error) {
 	if err != nil {
 		return cfg, fmt.Errorf("open config: %w", err)
 	}
-	defer file.Close()
+	defer func() { _ = file.Close() }()
 
 	scanner := bufio.NewScanner(file)
 	line := 0

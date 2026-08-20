@@ -68,13 +68,13 @@ func (s *Store) Save(record model.Record) error {
 		return fmt.Errorf("create metadata temp file: %w", err)
 	}
 	tmpName := tmp.Name()
-	defer os.Remove(tmpName)
+	defer func() { _ = os.Remove(tmpName) }()
 	if err := tmp.Chmod(0600); err != nil {
-		tmp.Close()
+		_ = tmp.Close()
 		return fmt.Errorf("protect metadata: %w", err)
 	}
 	if _, err := tmp.Write(data); err != nil {
-		tmp.Close()
+		_ = tmp.Close()
 		return fmt.Errorf("write metadata: %w", err)
 	}
 	if err := tmp.Close(); err != nil {

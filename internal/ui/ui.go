@@ -17,19 +17,19 @@ func New(out, errOut io.Writer) Printer {
 }
 
 func (p Printer) Header(text string) {
-	fmt.Fprintln(p.Out, p.paint("1;36", text))
+	_, _ = fmt.Fprintln(p.Out, p.paint("1;36", text))
 }
 
 func (p Printer) Success(text string) {
-	fmt.Fprintf(p.Out, "%s %s\n", p.paint("32", "✓"), text)
+	_, _ = fmt.Fprintf(p.Out, "%s %s\n", p.paint("32", "✓"), text)
 }
 
 func (p Printer) Failure(text string) {
-	fmt.Fprintf(p.Out, "%s %s\n", p.paint("31", "✗"), text)
+	_, _ = fmt.Fprintf(p.Out, "%s %s\n", p.paint("31", "✗"), text)
 }
 
 func (p Printer) Warning(text string) {
-	fmt.Fprintf(p.Out, "%s %s\n", p.paint("33", "!"), text)
+	_, _ = fmt.Fprintf(p.Out, "%s %s\n", p.paint("33", "!"), text)
 }
 
 func (p Printer) paint(code, text string) string {
