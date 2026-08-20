@@ -4,6 +4,8 @@ import (
 	"context"
 	"errors"
 	"os"
+	"path/filepath"
+	"strings"
 	"testing"
 
 	"github.com/pablo/sandbox/internal/metadata"
@@ -71,6 +73,30 @@ func TestCreatePersistentCreatesIsolatedHomeAndMetadata(t *testing.T) {
 	}
 	if _, err := os.Stat(store.Home("gentle-ai")); err != nil {
 		t.Fatalf("isolated home was not created: %v", err)
+	}
+}
+
+func TestCreateRefusesSymlinkedManagedHomes(t *testing.T) {
+	container := &fakeContainer{}
+	manager, store := newTestManager(t, container)
+	external := t.TempDir()
+	if err := os.MkdirAll(store.Paths.DataRoot, 0700); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.Symlink(external, store.Paths.Homes); err != nil {
+		t.Fatal(err)
+	}
+	distro, _ := FindDistribution("arch")
+	if _, err := manager.Create(context.Background(), CreateOptions{
+		Name: "unsafe-home", Distribution: distro, Persistence: Persistent, HomeMode: IsolatedHome,
+	}); err == nil || !strings.Contains(err.Error(), "symlinked managed homes") {
+		t.Fatalf("Create() error = %v, want symlink rejection", err)
+	}
+	if len(container.created) != 0 {
+		t.Fatalf("container was created despite unsafe home: %v", container.created)
+	}
+	if _, err := os.Stat(filepath.Join(external, "unsafe-home")); !os.IsNotExist(err) {
+		t.Fatalf("external directory was modified: %v", err)
 	}
 }
 

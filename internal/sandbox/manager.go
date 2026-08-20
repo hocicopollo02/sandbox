@@ -71,6 +71,9 @@ func (m *Manager) Create(ctx context.Context, options CreateOptions) (bool, erro
 	home := ""
 	homeCreated := false
 	if options.HomeMode == IsolatedHome {
+		if err := m.Store.ValidateHomesRoot(); err != nil {
+			return false, err
+		}
 		home = m.Store.Home(name)
 		if _, err := os.Stat(home); err == nil {
 			return false, fmt.Errorf("isolated home already exists: %s", home)

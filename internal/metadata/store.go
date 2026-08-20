@@ -119,6 +119,34 @@ func (s *Store) Home(name string) string {
 	return filepath.Join(s.Paths.Homes, name)
 }
 
+// ValidateHomesRoot rejects symlinked or non-directory ancestors before a home
+// is created or passed to the container runtime.
+func (s *Store) ValidateHomesRoot() error {
+	root, err := filepath.Abs(s.Paths.Homes)
+	if err != nil {
+		return fmt.Errorf("resolve managed homes directory: %w", err)
+	}
+	for current := root; ; current = filepath.Dir(current) {
+		info, err := os.Lstat(current)
+		switch {
+		case err == nil:
+			if info.Mode()&os.ModeSymlink != 0 {
+				return fmt.Errorf("refusing symlinked managed homes directory: %s", current)
+			}
+			if !info.IsDir() {
+				return fmt.Errorf("managed homes path is not a directory: %s", current)
+			}
+			return nil
+		case !errors.Is(err, os.ErrNotExist):
+			return fmt.Errorf("inspect managed homes directory: %w", err)
+		}
+		parent := filepath.Dir(current)
+		if parent == current {
+			return nil
+		}
+	}
+}
+
 func (s *Store) RemoveHome(name string) error {
 	path := s.Home(name)
 	root, err := filepath.Abs(s.Paths.Homes)
