@@ -4,6 +4,17 @@ Scope: extend V1 E2E coverage without changing the rootless Podman isolation mod
 
 ## P0 — persistent data and lifecycle
 
+### Roll back persistent auto-enter failure
+
+**Scenario**: create a persistent sandbox with auto-enter enabled, persist metadata, then force `enter` to fail.
+
+**Acceptance criteria**:
+
+- the command returns an actionable error;
+- no partially created container, metadata record, or managed home remains;
+- cleanup errors are preserved;
+- the behavior matches the PRD rollback requirement instead of silently leaving a recoverable-looking sandbox.
+
 ### Keep an isolated home on delete
 
 **Scenario**: create a persistent sandbox, then delete it with `--keep-home`.
@@ -57,6 +68,17 @@ Scope: extend V1 E2E coverage without changing the rootless Podman isolation mod
 - both commands fail with an actionable metadata error;
 - no container or home is deleted;
 - the error identifies the affected sandbox.
+
+### Delete failure and retry contract
+
+**Scenario**: make container deletion, home deletion, or metadata deletion fail, then retry `delete`.
+
+**Acceptance criteria**:
+
+- the first failure identifies the resource that could not be removed;
+- retries are safe and converge to a clean state;
+- metadata is retained until cleanup can be retried, unless the CLI explicitly records a recoverable orphan;
+- a failed delete never removes an unrelated home or container.
 
 ### Stale metadata / missing runtime object
 
