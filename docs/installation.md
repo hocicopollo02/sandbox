@@ -25,7 +25,7 @@ gh auth setup-git
 Instala la release:
 
 ```bash
-GOPRIVATE=github.com/hocicopollo02/* \\
+GOPRIVATE=github.com/hocicopollo02/* \
   go install github.com/hocicopollo02/sandbox@v0.1.0
 ```
 
@@ -46,7 +46,7 @@ sandbox doctor
 Para instalar una versión más reciente:
 
 ```bash
-GOPRIVATE=github.com/hocicopollo02/* \\
+GOPRIVATE=github.com/hocicopollo02/* \
   go install github.com/hocicopollo02/sandbox@latest
 ```
 
