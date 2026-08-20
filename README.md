@@ -31,7 +31,10 @@ GOPRIVATE=github.com/hocicopollo02/* \
 
 El repositorio actual es privado, por lo que necesitas tener GitHub autenticado
 para Git. El binario se instala en `$GOBIN` o, si está vacío, en
-`$(go env GOPATH)/bin`.
+`$(go env GOPATH)/bin`. Añade esa ubicación a PATH para poder ejecutar
+sandbox desde cualquier terminal, por ejemplo:
+
+    export PATH="$PATH:${GOBIN:-$(go env GOPATH)/bin}"
 
 Comprueba la instalación:
 
