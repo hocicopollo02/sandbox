@@ -29,7 +29,7 @@ func runDoctor(appState *app) error {
 	podmanOK := true
 	if err := appState.podman.Available(); err != nil {
 		appState.ui.Failure("Podman not installed")
-		fmt.Fprintln(appState.errOut, err)
+		_, _ = fmt.Fprintln(appState.errOut, err)
 		allGood = false
 		podmanOK = false
 	} else {
@@ -38,7 +38,7 @@ func runDoctor(appState *app) error {
 	if podmanOK {
 		if _, err := appState.podman.Info(context.Background()); err != nil {
 			appState.ui.Failure("Podman runtime working")
-			fmt.Fprintln(appState.errOut, err)
+			_, _ = fmt.Fprintln(appState.errOut, err)
 			allGood = false
 		} else {
 			appState.ui.Success("Podman runtime working")
@@ -52,14 +52,14 @@ func runDoctor(appState *app) error {
 		appState.ui.Failure("Podman rootless")
 	} else if os.Geteuid() == 0 {
 		appState.ui.Failure("Podman rootless")
-		fmt.Fprintln(appState.errOut, "sandbox must run as a normal user; do not use sudo podman")
+		_, _ = fmt.Fprintln(appState.errOut, "sandbox must run as a normal user; do not use sudo podman")
 		allGood = false
 	} else if rootless, err := appState.podman.Rootless(context.Background()); err != nil || !rootless {
 		appState.ui.Failure("Podman rootless")
 		if err != nil {
-			fmt.Fprintln(appState.errOut, err)
+			_, _ = fmt.Fprintln(appState.errOut, err)
 		} else {
-			fmt.Fprintln(appState.errOut, "Podman is configured for rootful mode; sandbox requires rootless Podman")
+			_, _ = fmt.Fprintln(appState.errOut, "Podman is configured for rootful mode; sandbox requires rootless Podman")
 		}
 		allGood = false
 	} else {
@@ -76,14 +76,14 @@ func runDoctor(appState *app) error {
 		appState.ui.Success("User namespaces configured")
 	} else {
 		appState.ui.Failure("User namespaces configured")
-		fmt.Fprintf(appState.errOut, "configure ranges for %s in /etc/subuid and /etc/subgid\n", current.Username)
+		_, _ = fmt.Fprintf(appState.errOut, "configure ranges for %s in /etc/subuid and /etc/subgid\n", current.Username)
 		allGood = false
 	}
 
 	if allGood {
-		fmt.Fprintln(appState.out, "\nEverything looks good.")
+		_, _ = fmt.Fprintln(appState.out, "\nEverything looks good.")
 	} else {
-		fmt.Fprintln(appState.out, "\nSome checks failed. Fix them and run sandbox doctor again.")
+		_, _ = fmt.Fprintln(appState.out, "\nSome checks failed. Fix them and run sandbox doctor again.")
 	}
 	return nil
 }

@@ -33,9 +33,9 @@ func newListCommand(appState *app) *cobra.Command {
 				return err
 			}
 			writer := tabwriter.NewWriter(appState.out, 0, 4, 2, ' ', 0)
-			fmt.Fprintln(writer, "NAME\tDISTRO\tTYPE\tHOME\tSTATUS")
+			_, _ = fmt.Fprintln(writer, "NAME\tDISTRO\tTYPE\tHOME\tSTATUS")
 			for _, entry := range entries {
-				fmt.Fprintf(writer, "%s\t%s\t%s\t%s\t%s\n", entry.Name, entry.Distribution, entry.Persistence, entry.HomeMode, entry.Status)
+				_, _ = fmt.Fprintf(writer, "%s\t%s\t%s\t%s\t%s\n", entry.Name, entry.Distribution, entry.Persistence, entry.HomeMode, entry.Status)
 			}
 			return writer.Flush()
 		},
