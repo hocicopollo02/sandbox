@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"io/fs"
 	"os"
 	"path/filepath"
 
@@ -182,7 +183,35 @@ func (s *Store) RemoveHome(name string) error {
 		return fmt.Errorf("refusing to delete non-directory isolated home: %s", target)
 	}
 	if err := os.RemoveAll(target); err != nil {
-		return fmt.Errorf("delete isolated home: %w", err)
+		// Read-only content such as a Go module cache blocks unlink from the host;
+		// grant the owner write permission and retry once.
+		if werr := grantWritePermission(target); werr != nil {
+			return fmt.Errorf("delete isolated home: %w; could not make the content writable: %w", err, werr)
+		}
+		if err := os.RemoveAll(target); err != nil {
+			return fmt.Errorf("delete isolated home after granting write permission: %w", err)
+		}
 	}
 	return nil
+}
+
+func grantWritePermission(root string) error {
+	var walkErr error
+	err := filepath.WalkDir(root, func(path string, entry fs.DirEntry, werr error) error {
+		if werr != nil {
+			walkErr = werr
+			return werr
+		}
+		info, err := entry.Info()
+		if err != nil {
+			walkErr = err
+			return err
+		}
+		mode := info.Mode().Perm() | 0200
+		if info.IsDir() {
+			mode |= 0100
+		}
+		return os.Chmod(path, mode)
+	})
+	return errors.Join(walkErr, err)
 }

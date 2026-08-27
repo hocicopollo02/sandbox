@@ -34,6 +34,30 @@ func TestStoreRoundTripAndAtomicFileMode(t *testing.T) {
 	}
 }
 
+func TestRemoveHomeUnwritableCache(t *testing.T) {
+	store := NewStore(PathsFor(t.TempDir()))
+	// Go's module cache keeps files read-only (0444) and directories 0555, which
+	// blocks unlink from the host.
+	dir := filepath.Join(store.Home("cached"), "mod", "cache", "workflows")
+	if err := os.MkdirAll(dir, 0700); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(dir, "ci.yml"), []byte("x"), 0444); err != nil {
+		t.Fatal(err)
+	}
+	for _, path := range []string{filepath.Dir(dir), dir} {
+		if err := os.Chmod(path, 0555); err != nil {
+			t.Fatal(err)
+		}
+	}
+	if err := store.RemoveHome("cached"); err != nil {
+		t.Fatalf("RemoveHome() = %v, want success after granting write permission", err)
+	}
+	if _, err := os.Stat(store.Home("cached")); !os.IsNotExist(err) {
+		t.Fatalf("managed home still exists: %v", err)
+	}
+}
+
 func TestRemoveHomeStaysInsideManagedRoot(t *testing.T) {
 	store := NewStore(PathsFor(t.TempDir()))
 	if err := os.MkdirAll(store.Home("gentle-ai"), 0700); err != nil {
