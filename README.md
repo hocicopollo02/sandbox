@@ -34,7 +34,6 @@ sandbox delete gentle-ai --yes
 - [Arquitectura](docs/architecture.md)
 - [Seguridad y aislamiento](docs/security.md)
 - [Desarrollo y releases](docs/development.md)
-- [Backlog de endurecimiento](docs/hardening-backlog.md)
 - [PRD](PRD.md)
 
 ## Garantía principal

@@ -214,6 +214,78 @@ func TestE2EDisposableLifecycle(t *testing.T) {
 	assertContainerMissing(t, env, name)
 }
 
+func TestE2EDeleteKeepHomeReportsRetainedPath(t *testing.T) {
+	bin, env := prepareE2E(t)
+	name := uniqueName("keep-home")
+	home := filepath.Join(envHome(env), ".local", "share", "sandbox", "homes", name)
+	metadata := filepath.Join(envHome(env), ".local", "share", "sandbox", "sandboxes", name+".json")
+	cleanupSandbox(t, bin, env, name)
+
+	runCLI(t, bin, env, "create", name, "--distro", "arch", "--persistent", "--isolated-home", "--no-enter", "--yes")
+	marker := filepath.Join(home, "precious.txt")
+	if err := os.WriteFile(marker, []byte("keep"), 0600); err != nil {
+		t.Fatal(err)
+	}
+
+	output := runCLI(t, bin, env, "delete", name, "--keep-home", "--yes")
+	if !strings.Contains(output, home) {
+		t.Fatalf("delete --keep-home output does not report the retained home path:\n%s", output)
+	}
+	assertExists(t, marker)
+	assertMissing(t, metadata)
+	assertContainerMissing(t, env, name)
+
+	// A second delete attempt must not remove the retained home.
+	if output := runCLIFailure(t, bin, env, "delete", name, "--yes"); !strings.Contains(output, "does not exist") {
+		t.Fatalf("retry delete output:\n%s", output)
+	}
+	assertExists(t, marker)
+
+	// Recreating the same name collides with the retained home.
+	output = runCLIFailure(t, bin, env, "create", name, "--distro", "arch", "--persistent", "--isolated-home", "--no-enter", "--yes")
+	if !strings.Contains(output, "isolated home already exists") {
+		t.Fatalf("recreate over retained home output:\n%s", output)
+	}
+	assertExists(t, marker)
+}
+
+func TestE2EReenterAfterStop(t *testing.T) {
+	bin, env := prepareE2E(t)
+	name := uniqueName("reenter")
+	cleanupSandbox(t, bin, env, name)
+
+	runCLI(t, bin, env, "create", name, "--distro", "arch", "--persistent", "--isolated-home", "--no-enter", "--yes")
+
+	first := startInteractive(t, bin, env, "enter", name)
+	waitForShell(t, first)
+	first.write("echo FIRST_SESSION\n")
+	first.waitFor(t, "FIRST_SESSION", 30*time.Second, nil)
+	first.write("exit\n")
+	first.wait(t, 30*time.Second)
+
+	if output := runCLI(t, bin, env, "stop", name); !strings.Contains(output, "Sandbox stopped") {
+		t.Fatalf("stop output:\n%s", output)
+	}
+
+	second := startInteractive(t, bin, env, "enter", name)
+	waitForShell(t, second)
+	second.write("echo SECOND_SESSION\n")
+	second.waitFor(t, "SECOND_SESSION", 60*time.Second, nil)
+	second.write("exit\n")
+	second.wait(t, 30*time.Second)
+
+	var entries []sandboxEntry
+	if err := json.Unmarshal([]byte(runCLI(t, bin, env, "list", "--json")), &entries); err != nil {
+		t.Fatalf("list after re-entry: %v", err)
+	}
+	if len(entries) != 1 || entries[0].Status != "running" {
+		t.Fatalf("list after re-entry = %#v", entries)
+	}
+
+	runCLI(t, bin, env, "delete", name, "--yes")
+	assertContainerMissing(t, env, name)
+}
+
 func TestE2EDisposableInterruptCleansUp(t *testing.T) {
 	bin, env := prepareE2E(t)
 	name := uniqueName("interrupt")

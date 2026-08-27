@@ -45,6 +45,9 @@ func newDeleteCommand(appState *app) *cobra.Command {
 				return err
 			}
 			appState.ui.Success("Sandbox deleted")
+			if !deleteHome && info.HomeMode == sandbox.IsolatedHome {
+				fmt.Fprintf(appState.out, "Retained isolated home: %s\n", appState.manager.ManagedHome(info.Name))
+			}
 			return nil
 		},
 	}

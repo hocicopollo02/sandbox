@@ -224,6 +224,80 @@ func TestLookupReturnsMetadataWithoutRuntimeQuery(t *testing.T) {
 	}
 }
 
+func TestCreateRollsBackEverythingWhenPersistentEnterFails(t *testing.T) {
+	container := &fakeContainer{enterErr: errors.New("pty failed")}
+	manager, store := newTestManager(t, container)
+	distro, _ := FindDistribution("arch")
+	_, err := manager.Create(context.Background(), CreateOptions{
+		Name: "crashed", Distribution: distro, Persistence: Persistent, HomeMode: IsolatedHome, AutoEnter: true,
+	})
+	if err == nil || !strings.Contains(err.Error(), "pty failed") {
+		t.Fatalf("Create() error = %v, want enter failure", err)
+	}
+	if _, err := store.Get("crashed"); !errors.Is(err, metadata.ErrNotFound) {
+		t.Fatalf("metadata was not rolled back: %v", err)
+	}
+	if _, err := os.Stat(store.Home("crashed")); !os.IsNotExist(err) {
+		t.Fatalf("home was not rolled back: %v", err)
+	}
+	if len(container.deleted) != 1 || container.deleted[0] != "crashed" {
+		t.Fatalf("container deletes = %v, want exactly one for crashed", container.deleted)
+	}
+}
+
+// racingInspector plants a winner mid-create to simulate a concurrent create
+// winning the reservation between this manager's checks and its reserve.
+type racingInspector struct {
+	fakeInspector
+	during func()
+}
+
+func (r *racingInspector) Status(ctx context.Context, name string) (Status, error) {
+	status, err := r.fakeInspector.Status(ctx, name)
+	if r.during != nil {
+		r.during()
+		r.during = nil
+	}
+	return status, err
+}
+
+func TestLosingCreateCannotDeleteWinnersHome(t *testing.T) {
+	container := &fakeContainer{}
+	manager, store := newTestManager(t, container)
+	distro, _ := FindDistribution("arch")
+	winnerHome := store.Home("winner")
+	inspector := &racingInspector{during: func() {
+		record := Record{Name: "winner", Distribution: distro.ID, Image: distro.Image, Persistence: Persistent, HomeMode: IsolatedHome, CreatedAt: time.Now().In(time.Local)}
+		if err := store.SaveExclusive(record); err != nil {
+			t.Errorf("winner reservation failed: %v", err)
+		}
+		if err := os.MkdirAll(winnerHome, 0700); err != nil {
+			t.Errorf("winner home creation failed: %v", err)
+		}
+		marker := filepath.Join(winnerHome, "data.txt")
+		if err := os.WriteFile(marker, []byte("keep"), 0600); err != nil {
+			t.Errorf("winner marker write failed: %v", err)
+		}
+	}}
+	manager.Inspector = inspector
+	_, err := manager.Create(context.Background(), CreateOptions{
+		Name: "winner", Distribution: distro, Persistence: Persistent, HomeMode: IsolatedHome,
+	})
+	if err == nil || !strings.Contains(err.Error(), "already exists") {
+		t.Fatalf("losing Create() error = %v, want collision", err)
+	}
+	marker := filepath.Join(winnerHome, "data.txt")
+	if _, statErr := os.Stat(marker); statErr != nil {
+		t.Fatalf("winner's home content was removed by the loser: %v", statErr)
+	}
+	if len(container.created) != 0 || len(container.deleted) != 0 {
+		t.Fatalf("loser touched the runtime: created=%v deleted=%v", container.created, container.deleted)
+	}
+	if _, err := store.Get("winner"); err != nil {
+		t.Fatalf("winner's metadata was damaged: %v", err)
+	}
+}
+
 func TestSubIDConfiguredParsesLinuxColonFormat(t *testing.T) {
 	path := t.TempDir() + "/subuid"
 	if err := os.WriteFile(path, []byte("pablo:100000:65536\n"), 0600); err != nil {

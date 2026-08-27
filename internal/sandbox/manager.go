@@ -68,9 +68,7 @@ func (m *Manager) Create(ctx context.Context, options CreateOptions) (bool, erro
 	if status != Missing {
 		return false, fmt.Errorf("sandbox %q already exists outside sandbox metadata", name)
 	}
-
 	home := ""
-	homeCreated := false
 	if options.HomeMode == IsolatedHome {
 		if err := m.Store.ValidateHomesRoot(); err != nil {
 			return false, err
@@ -81,34 +79,47 @@ func (m *Manager) Create(ctx context.Context, options CreateOptions) (bool, erro
 		} else if !errors.Is(err, os.ErrNotExist) {
 			return false, fmt.Errorf("check isolated home: %w", err)
 		}
+	}
+
+	// Reserve the name atomically before creating any resource; a losing
+	// concurrent create fails here without touching the winner's home.
+	record := Record{
+		Name:         name,
+		Distribution: options.Distribution.ID,
+		Image:        options.Distribution.Image,
+		Persistence:  options.Persistence,
+		HomeMode:     options.HomeMode,
+		CreatedAt:    time.Now().In(time.Local),
+	}
+	if err := m.Store.SaveExclusive(record); err != nil {
+		return false, err
+	}
+	discardReservation := func() error { return m.Store.Delete(name) }
+
+	homeCreated := false
+	if options.HomeMode == IsolatedHome {
 		if err := os.MkdirAll(home, 0700); err != nil {
+			_ = discardReservation()
 			return false, fmt.Errorf("create isolated home: %w", err)
 		}
 		homeCreated = true
 	}
+	cleanup := func() error {
+		err := discardReservation()
+		if homeCreated {
+			err = errors.Join(err, m.Store.RemoveHome(name))
+		}
+		return err
+	}
 
 	if err := m.Container.Create(ctx, name, options.Distribution.Image, home); err != nil {
-		if homeCreated {
-			_ = m.Store.RemoveHome(name)
-		}
-		return false, err
+		return false, errors.Join(err, cleanup())
 	}
 
 	if options.Persistence == Persistent {
-		record := Record{
-			Name:         name,
-			Distribution: options.Distribution.ID,
-			Image:        options.Distribution.Image,
-			Persistence:  options.Persistence,
-			HomeMode:     options.HomeMode,
-			HomePath:     home,
-			CreatedAt:    time.Now().In(time.Local),
-		}
+		record.HomePath = home
 		if err := m.Store.Save(record); err != nil {
-			cleanupErr := m.Container.Delete(ctx, name)
-			if homeCreated {
-				cleanupErr = errors.Join(cleanupErr, m.Store.RemoveHome(name))
-			}
+			cleanupErr := errors.Join(m.Container.Delete(ctx, name), cleanup())
 			return false, errors.Join(fmt.Errorf("save sandbox metadata: %w", err), cleanupErr)
 		}
 	}
@@ -117,16 +128,13 @@ func (m *Manager) Create(ctx context.Context, options CreateOptions) (bool, erro
 		return false, nil
 	}
 	if err := m.Container.Enter(ctx, name); err != nil {
-		if options.Persistence == Disposable {
-			cleanupCtx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
-			defer cancel()
-			cleanupErr := m.Container.Delete(cleanupCtx, name)
-			if homeCreated {
-				cleanupErr = errors.Join(cleanupErr, m.Store.RemoveHome(name))
-			}
-			return false, errors.Join(err, cleanupErr)
+		cleanupCtx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+		defer cancel()
+		cleanupErr := errors.Join(m.Container.Delete(cleanupCtx, name), discardReservation())
+		if homeCreated {
+			cleanupErr = errors.Join(cleanupErr, m.Store.RemoveHome(name))
 		}
-		return false, err
+		return false, errors.Join(err, cleanupErr)
 	}
 
 	if options.Persistence == Disposable {
@@ -135,8 +143,9 @@ func (m *Manager) Create(ctx context.Context, options CreateOptions) (bool, erro
 		if homeCreated {
 			homeErr = m.Store.RemoveHome(name)
 		}
-		if deleteErr != nil || homeErr != nil {
-			return true, errors.Join(deleteErr, homeErr)
+		metaErr := m.Store.Delete(name)
+		if deleteErr != nil || homeErr != nil || metaErr != nil {
+			return true, errors.Join(deleteErr, homeErr, metaErr)
 		}
 		return true, nil
 	}

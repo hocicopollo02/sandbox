@@ -3,6 +3,7 @@ package metadata
 import (
 	"os"
 	"path/filepath"
+	"strings"
 	"testing"
 	"time"
 
@@ -31,6 +32,29 @@ func TestStoreRoundTripAndAtomicFileMode(t *testing.T) {
 	}
 	if info.Mode().Perm() != 0600 {
 		t.Fatalf("metadata mode = %o, want 600", info.Mode().Perm())
+	}
+}
+
+func TestSaveExclusiveRejectsSecondReservation(t *testing.T) {
+	store := NewStore(PathsFor(t.TempDir()))
+	record := model.Record{
+		Name: "raced", Distribution: "arch", Image: "archlinux", Persistence: model.Persistent,
+		HomeMode: model.IsolatedHome, CreatedAt: time.Now(),
+	}
+	if err := store.SaveExclusive(record); err != nil {
+		t.Fatal(err)
+	}
+	err := store.SaveExclusive(record)
+	if err == nil || !strings.Contains(err.Error(), "already exists") {
+		t.Fatalf("second SaveExclusive() = %v, want collision", err)
+	}
+	got, err := store.Get("raced")
+	if err != nil || got.Name != "raced" {
+		t.Fatalf("winner record damaged: %#v, %v", got, err)
+	}
+	info, err := os.Stat(filepath.Join(store.Paths.Metadata, "raced.json"))
+	if err != nil || info.Mode().Perm() != 0600 {
+		t.Fatalf("reservation mode = %v, %v; want 600", info, err)
 	}
 }
 

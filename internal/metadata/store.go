@@ -87,6 +87,36 @@ func (s *Store) Save(record model.Record) error {
 	return nil
 }
 
+// SaveExclusive atomically reserves the sandbox name: it fails if a record
+// already exists, so a losing concurrent create cannot claim the same name.
+func (s *Store) SaveExclusive(record model.Record) error {
+	if _, err := model.ValidateName(record.Name); err != nil {
+		return err
+	}
+	data, err := json.MarshalIndent(record, "", "  ")
+	if err != nil {
+		return fmt.Errorf("encode metadata: %w", err)
+	}
+	if err := os.MkdirAll(s.Paths.Metadata, 0700); err != nil {
+		return fmt.Errorf("create metadata directory: %w", err)
+	}
+	file, err := os.OpenFile(s.file(record.Name), os.O_WRONLY|os.O_CREATE|os.O_EXCL, 0600)
+	if errors.Is(err, os.ErrExist) {
+		return fmt.Errorf("sandbox %q already exists", record.Name)
+	}
+	if err != nil {
+		return fmt.Errorf("reserve metadata for %q: %w", record.Name, err)
+	}
+	if _, err := file.Write(data); err != nil {
+		_ = file.Close()
+		return fmt.Errorf("write metadata: %w", err)
+	}
+	if err := file.Close(); err != nil {
+		return fmt.Errorf("close metadata: %w", err)
+	}
+	return nil
+}
+
 func (s *Store) Delete(name string) error {
 	if err := os.Remove(s.file(name)); err != nil && !errors.Is(err, os.ErrNotExist) {
 		return fmt.Errorf("delete metadata for %q: %w", name, err)
