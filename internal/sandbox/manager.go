@@ -288,7 +288,7 @@ func (m *Manager) Delete(ctx context.Context, name string, options DeleteOptions
 	}
 	if status != Missing {
 		if err := m.Container.Delete(ctx, name); err != nil {
-			return err
+			return fmt.Errorf("delete container for sandbox %q: %w", name, err)
 		}
 	}
 	if options.DeleteHome && record.HomeMode == IsolatedHome {
