@@ -7,6 +7,7 @@ import (
 	"os/user"
 	"strconv"
 
+	"github.com/hocicopollo02/sandbox/internal/podman"
 	"github.com/hocicopollo02/sandbox/internal/sandbox"
 	"github.com/spf13/cobra"
 )
@@ -27,6 +28,7 @@ func runDoctor(appState *app) error {
 	allGood := true
 
 	podmanOK := true
+	var infoData []byte
 	if err := appState.podman.Available(); err != nil {
 		appState.ui.Failure("Podman not installed")
 		_, _ = fmt.Fprintln(appState.errOut, err)
@@ -36,7 +38,9 @@ func runDoctor(appState *app) error {
 		appState.ui.Success("Podman installed")
 	}
 	if podmanOK {
-		if _, err := appState.podman.Info(context.Background()); err != nil {
+		var err error
+		infoData, err = appState.podman.Info(context.Background())
+		if err != nil {
 			appState.ui.Failure("Podman runtime working")
 			_, _ = fmt.Fprintln(appState.errOut, err)
 			allGood = false
@@ -54,7 +58,7 @@ func runDoctor(appState *app) error {
 		appState.ui.Failure("Podman rootless")
 		_, _ = fmt.Fprintln(appState.errOut, "sandbox must run as a normal user; do not use sudo podman")
 		allGood = false
-	} else if rootless, err := appState.podman.Rootless(context.Background()); err != nil || !rootless {
+	} else if rootless, err := podman.ParseRootless(infoData); err != nil || !rootless {
 		appState.ui.Failure("Podman rootless")
 		if err != nil {
 			_, _ = fmt.Fprintln(appState.errOut, err)

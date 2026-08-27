@@ -23,6 +23,7 @@ type ContainerClient interface {
 type Inspector interface {
 	Available() error
 	Status(ctx context.Context, name string) (Status, error)
+	Statuses(ctx context.Context, names []string) (map[string]Status, error)
 }
 
 type Manager struct {
@@ -167,18 +168,22 @@ func (m *Manager) List(ctx context.Context) ([]ListEntry, error) {
 	if err != nil {
 		return nil, err
 	}
+	names := make([]string, 0, len(records))
+	for _, record := range records {
+		names = append(names, record.Name)
+	}
+	statuses, err := m.Inspector.Statuses(ctx, names)
+	if err != nil {
+		return nil, err
+	}
 	entries := make([]ListEntry, 0, len(records))
 	for _, record := range records {
-		status, err := m.Inspector.Status(ctx, record.Name)
-		if err != nil {
-			return nil, err
-		}
 		entries = append(entries, ListEntry{
 			Name:         record.Name,
 			Distribution: record.Distribution,
 			Persistence:  record.Persistence,
 			HomeMode:     record.HomeMode,
-			Status:       status,
+			Status:       statuses[record.Name],
 		})
 	}
 	return entries, nil
@@ -224,6 +229,23 @@ func (m *Manager) Info(ctx context.Context, name string) (Info, error) {
 		return Info{}, err
 	}
 	return Info{Record: record, Status: status}, nil
+}
+
+// Lookup returns stored metadata without querying the container runtime; the
+// Status field is intentionally empty.
+func (m *Manager) Lookup(_ context.Context, name string) (Info, error) {
+	name, err := ValidateName(name)
+	if err != nil {
+		return Info{}, err
+	}
+	record, err := m.Store.Get(name)
+	if errors.Is(err, metadata.ErrNotFound) {
+		return Info{}, fmt.Errorf("sandbox %q does not exist", name)
+	}
+	if err != nil {
+		return Info{}, err
+	}
+	return Info{Record: record}, nil
 }
 
 func (m *Manager) Delete(ctx context.Context, name string, options DeleteOptions) error {

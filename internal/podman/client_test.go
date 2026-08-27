@@ -121,6 +121,61 @@ func sameCalls(left, right [][]string) bool {
 	return true
 }
 
+func TestStatusesUsesSinglePsCallAndDefaultsToMissing(t *testing.T) {
+	psRunner := &psRunner{output: []byte("box-a running\nbox-b exited\nthird-party created\n")}
+	statuses, err := New(psRunner).Statuses(context.Background(), []string{"box-a", "box-b", "box-c"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	want := map[string]sandbox.Status{"box-a": sandbox.Running, "box-b": sandbox.Stopped, "box-c": sandbox.Missing}
+	for name, status := range want {
+		if got := statuses[name]; got != status {
+			t.Errorf("statuses[%q] = %q, want %q", name, got, status)
+		}
+	}
+	if len(psRunner.calls) != 1 {
+		t.Fatalf("calls = %#v, want exactly one podman invocation", psRunner.calls)
+	}
+	wantCall := []string{"podman", "ps", "-a", "--format", "{{.Names}} {{.State}}"}
+	if !sameCalls(psRunner.calls, [][]string{wantCall}) {
+		t.Fatalf("calls = %#v, want %#v", psRunner.calls, wantCall)
+	}
+}
+
+func TestStatusesWithoutNamesSkipsPodman(t *testing.T) {
+	psRunner := &psRunner{}
+	if _, err := New(psRunner).Statuses(context.Background(), nil); err != nil {
+		t.Fatal(err)
+	}
+	if len(psRunner.calls) != 0 {
+		t.Fatalf("calls = %#v, want none", psRunner.calls)
+	}
+}
+
+func TestParseRootlessReadsJSONInfo(t *testing.T) {
+	data := []byte(`{"host":{"security":{"rootless":true}}}`)
+	got, err := ParseRootless(data)
+	if err != nil || !got {
+		t.Fatalf("ParseRootless() = %v, %v; want true, nil", got, err)
+	}
+	if _, err := ParseRootless([]byte("not json")); err == nil {
+		t.Fatal("ParseRootless(not json) returned nil error")
+	}
+}
+
+type psRunner struct {
+	calls  [][]string
+	output []byte
+	err    error
+}
+
+func (r *psRunner) Run(_ context.Context, name string, args ...string) ([]byte, error) {
+	r.calls = append(r.calls, append([]string{name}, args...))
+	return r.output, r.err
+}
+func (r *psRunner) Attach(context.Context, string, ...string) error { return nil }
+func (r *psRunner) LookPath(string) (string, error)                 { return "/bin/podman", nil }
+
 func TestStatusMapsPodmanOutput(t *testing.T) {
 	for _, test := range []struct {
 		output string

@@ -121,18 +121,40 @@ func (c *Client) Info(ctx context.Context) ([]byte, error) {
 	return output, nil
 }
 
-func (c *Client) Rootless(ctx context.Context) (bool, error) {
-	output, err := c.Runner.Run(ctx, "podman", "info", "--format", "{{.Host.Security.Rootless}}")
+func (c *Client) Statuses(ctx context.Context, names []string) (map[string]sandbox.Status, error) {
+	statuses := make(map[string]sandbox.Status, len(names))
+	for _, name := range names {
+		statuses[name] = sandbox.Missing
+	}
+	if len(names) == 0 {
+		return statuses, nil
+	}
+	output, err := c.Runner.Run(ctx, "podman", "ps", "-a", "--format", "{{.Names}} {{.State}}")
 	if err != nil {
-		return false, fmt.Errorf("could not determine whether Podman is rootless: %s", strings.TrimSpace(string(output)))
+		return nil, fmt.Errorf("could not query sandbox states: %s", strings.TrimSpace(string(output)))
 	}
-	value := strings.TrimSpace(string(output))
-	if strings.EqualFold(value, "true") {
-		return true, nil
+	for _, line := range strings.Split(strings.TrimSpace(string(output)), "\n") {
+		if line == "" {
+			continue
+		}
+		name, state, _ := strings.Cut(line, " ")
+		if _, tracked := statuses[name]; !tracked {
+			continue
+		}
+		switch strings.TrimSpace(state) {
+		case "running":
+			statuses[name] = sandbox.Running
+		case "":
+			statuses[name] = sandbox.Unknown
+		default:
+			statuses[name] = sandbox.Stopped
+		}
 	}
-	if strings.EqualFold(value, "false") {
-		return false, nil
-	}
+	return statuses, nil
+}
+
+// ParseRootless reads the rootless flag from the JSON output of `podman info --format json`.
+func ParseRootless(data []byte) (bool, error) {
 	var info struct {
 		Host struct {
 			Security struct {
@@ -140,8 +162,8 @@ func (c *Client) Rootless(ctx context.Context) (bool, error) {
 			} `json:"security"`
 		} `json:"host"`
 	}
-	if err := json.Unmarshal(output, &info); err != nil {
-		return false, fmt.Errorf("unexpected Podman rootless response %q", value)
+	if err := json.Unmarshal(data, &info); err != nil {
+		return false, fmt.Errorf("unexpected Podman info response %q", strings.TrimSpace(string(data)))
 	}
 	return info.Host.Security.Rootless, nil
 }

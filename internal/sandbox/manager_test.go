@@ -7,6 +7,7 @@ import (
 	"path/filepath"
 	"strings"
 	"testing"
+	"time"
 
 	"github.com/hocicopollo02/sandbox/internal/metadata"
 )
@@ -39,7 +40,10 @@ func (f *fakeContainer) Delete(_ context.Context, name string) error {
 }
 
 type fakeInspector struct {
-	status Status
+	status    Status
+	statuses  map[string]Status
+	batches   int
+	lastBatch []string
 }
 
 func (f *fakeInspector) Available() error { return nil }
@@ -48,6 +52,19 @@ func (f *fakeInspector) Status(_ context.Context, name string) (Status, error) {
 		return Missing, nil
 	}
 	return f.status, nil
+}
+func (f *fakeInspector) Statuses(_ context.Context, names []string) (map[string]Status, error) {
+	f.batches++
+	f.lastBatch = append([]string(nil), names...)
+	out := make(map[string]Status, len(names))
+	for _, name := range names {
+		if status, ok := f.statuses[name]; ok {
+			out[name] = status
+		} else {
+			out[name] = Missing
+		}
+	}
+	return out, nil
 }
 
 func newTestManager(t *testing.T, container *fakeContainer) (*Manager, *metadata.Store) {
@@ -153,6 +170,57 @@ func TestDisposableDeletesContainerAndHomeAfterExit(t *testing.T) {
 	}
 	if _, err := os.Stat(store.Home("temporary")); !os.IsNotExist(err) {
 		t.Fatalf("temporary home was not cleaned: %v", err)
+	}
+}
+
+func TestListQueriesRuntimeOnceForAllSandboxes(t *testing.T) {
+	container := &fakeContainer{}
+	manager, store := newTestManager(t, container)
+	distro, _ := FindDistribution("arch")
+	for _, name := range []string{"box-a", "box-b", "box-c"} {
+		if err := store.Save(Record{Name: name, Distribution: distro.ID, Image: distro.Image, Persistence: Persistent, HomeMode: IsolatedHome, CreatedAt: time.Now().In(time.Local)}); err != nil {
+			t.Fatal(err)
+		}
+	}
+	inspector := &fakeInspector{statuses: map[string]Status{"box-b": Running}}
+	manager.Inspector = inspector
+	entries, err := manager.List(context.Background())
+	if err != nil {
+		t.Fatal(err)
+	}
+	if inspector.batches != 1 || len(inspector.lastBatch) != 3 {
+		t.Fatalf("inspector batches = %d for %v, want one batch of 3", inspector.batches, inspector.lastBatch)
+	}
+	want := map[string]Status{"box-a": Missing, "box-b": Running, "box-c": Missing}
+	for _, entry := range entries {
+		if entry.Status != want[entry.Name] {
+			t.Errorf("entry %q status = %q, want %q", entry.Name, entry.Status, want[entry.Name])
+		}
+	}
+}
+
+func TestLookupReturnsMetadataWithoutRuntimeQuery(t *testing.T) {
+	container := &fakeContainer{}
+	manager, store := newTestManager(t, container)
+	distro, _ := FindDistribution("arch")
+	record := Record{Name: "quiet", Distribution: distro.ID, Image: distro.Image, Persistence: Persistent, HomeMode: IsolatedHome, CreatedAt: time.Now().In(time.Local)}
+	if err := store.Save(record); err != nil {
+		t.Fatal(err)
+	}
+	inspector := &fakeInspector{}
+	manager.Inspector = inspector
+	info, err := manager.Lookup(context.Background(), "quiet")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if info.Name != "quiet" || info.HomeMode != IsolatedHome {
+		t.Fatalf("Lookup() = %+v, want metadata-only info", info)
+	}
+	if info.Status != "" {
+		t.Fatalf("Lookup() status = %q, want empty without runtime query", info.Status)
+	}
+	if inspector.batches != 0 {
+		t.Fatal("Lookup must not query the container runtime")
 	}
 }
 

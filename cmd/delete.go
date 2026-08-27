@@ -21,7 +21,7 @@ func newDeleteCommand(appState *app) *cobra.Command {
 			return nil
 		},
 		RunE: func(cmd *cobra.Command, args []string) error {
-			info, err := appState.manager.Info(cmd.Context(), args[0])
+			info, err := appState.manager.Lookup(cmd.Context(), args[0])
 			if err != nil {
 				return err
 			}
