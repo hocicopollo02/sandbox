@@ -18,7 +18,10 @@ func newExecCommand(appState *app) *cobra.Command {
 		},
 		RunE: func(cmd *cobra.Command, args []string) error {
 			atDash := cmd.ArgsLenAtDash()
-			if atDash < 0 || atDash >= len(args) {
+			if atDash != 1 {
+				return fmt.Errorf("exec requires exactly one sandbox name before --")
+			}
+			if atDash >= len(args) {
 				return fmt.Errorf("exec requires a command after --")
 			}
 			return appState.manager.Exec(cmd.Context(), args[0], args[atDash:])

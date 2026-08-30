@@ -20,6 +20,7 @@ type Runner interface {
 
 type CommandRunner struct {
 	Verbose bool
+	Out     io.Writer
 	Err     io.Writer
 }
 
@@ -43,8 +44,14 @@ func (r *CommandRunner) RunStream(ctx context.Context, name string, args ...stri
 		return err
 	}
 	cmd := exec.CommandContext(ctx, name, args...)
-	cmd.Stdout = os.Stdout
-	cmd.Stderr = os.Stderr
+	cmd.Stdout = r.Out
+	if cmd.Stdout == nil {
+		cmd.Stdout = os.Stdout
+	}
+	cmd.Stderr = r.Err
+	if cmd.Stderr == nil {
+		cmd.Stderr = os.Stderr
+	}
 	err := cmd.Run()
 	if err == nil {
 		return nil
