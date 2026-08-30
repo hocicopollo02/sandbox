@@ -68,7 +68,7 @@ func TestE2EExecMissingSandboxFails(t *testing.T) {
 
 func TestE2EExecRequiresCommandAfterDash(t *testing.T) {
 	bin, env := prepareE2E(t)
-	output := runCLIFailure(t, bin, env, "exec", uniqueName("exec-nocmd"))
+	output := runCLIFailure(t, bin, env, "exec", uniqueName("exec-nocmd"), "--")
 	if !strings.Contains(output, "command after --") {
 		t.Fatalf("exec without command output:\n%s", output)
 	}
