@@ -80,7 +80,7 @@ sandbox delete review-123 --yes
   son los mismos que en `enter`.
 
 Fuera de alcance inicial: `--env`, `--workdir`, mounts adicionales, publicación
- de puertos y un comando compuesto tipo `sandbox run`.
+de puertos y un comando compuesto tipo `sandbox run`.
 
 ## `create`
 

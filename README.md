@@ -27,6 +27,8 @@ sandbox stop gentle-ai
 sandbox delete gentle-ai --yes
 ```
 
+Para ejecutar comandos sin TTY en un sandbox, consulta [`sandbox exec`](docs/usage.md#exec).
+
 ## Documentación
 
 - [Instalación](docs/installation.md)
