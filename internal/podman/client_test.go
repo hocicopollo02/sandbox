@@ -15,6 +15,7 @@ type fakeRunner struct {
 }
 
 func (f fakeRunner) Run(context.Context, string, ...string) ([]byte, error) { return f.output, f.err }
+func (f fakeRunner) RunStream(context.Context, string, ...string) error     { return f.err }
 func (f fakeRunner) Attach(context.Context, string, ...string) error        { return f.err }
 func (f fakeRunner) LookPath(string) (string, error)                        { return "/bin/tool", nil }
 
@@ -28,6 +29,11 @@ func (r *recordingRunner) Run(_ context.Context, name string, args ...string) ([
 		return []byte("exited\n"), nil
 	}
 	return nil, nil
+}
+
+func (r *recordingRunner) RunStream(_ context.Context, name string, args ...string) error {
+	r.calls = append(r.calls, append([]string{name}, args...))
+	return nil
 }
 
 func (r *recordingRunner) Attach(_ context.Context, name string, args ...string) error {
@@ -68,8 +74,9 @@ func (r *failingStartRunner) Run(_ context.Context, name string, args ...string)
 	}
 }
 
-func (r *failingStartRunner) Attach(context.Context, string, ...string) error { return nil }
-func (r *failingStartRunner) LookPath(string) (string, error)                 { return "/bin/podman", nil }
+func (r *failingStartRunner) Attach(context.Context, string, ...string) error    { return nil }
+func (r *failingStartRunner) RunStream(context.Context, string, ...string) error { return nil }
+func (r *failingStartRunner) LookPath(string) (string, error)                    { return "/bin/podman", nil }
 
 func TestCreateReportsCleanupFailureAfterStartFailure(t *testing.T) {
 	runner := &failingStartRunner{}
@@ -173,8 +180,9 @@ func (r *psRunner) Run(_ context.Context, name string, args ...string) ([]byte, 
 	r.calls = append(r.calls, append([]string{name}, args...))
 	return r.output, r.err
 }
-func (r *psRunner) Attach(context.Context, string, ...string) error { return nil }
-func (r *psRunner) LookPath(string) (string, error)                 { return "/bin/podman", nil }
+func (r *psRunner) Attach(context.Context, string, ...string) error    { return nil }
+func (r *psRunner) RunStream(context.Context, string, ...string) error { return nil }
+func (r *psRunner) LookPath(string) (string, error)                    { return "/bin/podman", nil }
 
 func TestStatusMapsPodmanOutput(t *testing.T) {
 	for _, test := range []struct {

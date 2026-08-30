@@ -23,8 +23,9 @@ func (r *retryContainer) Available() error { return nil }
 func (r *retryContainer) Create(context.Context, string, string, string) error {
 	return nil
 }
-func (r *retryContainer) Enter(context.Context, string) error { return nil }
-func (r *retryContainer) Stop(context.Context, string) error  { return nil }
+func (r *retryContainer) Enter(context.Context, string) error          { return nil }
+func (r *retryContainer) Exec(context.Context, string, []string) error { return nil }
+func (r *retryContainer) Stop(context.Context, string) error           { return nil }
 func (r *retryContainer) Delete(_ context.Context, name string) error {
 	r.deletes = append(r.deletes, name)
 	if r.failFirst && len(r.deletes) == 1 {

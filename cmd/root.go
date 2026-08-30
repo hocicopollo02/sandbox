@@ -79,6 +79,7 @@ func NewRootCommand(home string, in io.Reader, out, errOut io.Writer) (*cobra.Co
 		newCreateCommand(appState),
 		newListCommand(appState),
 		newEnterCommand(appState),
+		newExecCommand(appState),
 		newStopCommand(appState),
 		newDeleteCommand(appState),
 		newInfoCommand(appState),

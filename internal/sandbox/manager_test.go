@@ -15,9 +15,11 @@ import (
 type fakeContainer struct {
 	createErr error
 	enterErr  error
+	execErr   error
 	deleteErr error
 	created   []string
 	entered   []string
+	execCalls [][]string
 	deleted   []string
 }
 
@@ -32,6 +34,10 @@ func (f *fakeContainer) Create(_ context.Context, name, image, home string) erro
 func (f *fakeContainer) Enter(_ context.Context, name string) error {
 	f.entered = append(f.entered, name)
 	return f.enterErr
+}
+func (f *fakeContainer) Exec(_ context.Context, name string, command []string) error {
+	f.execCalls = append(f.execCalls, append([]string{name}, command...))
+	return f.execErr
 }
 func (f *fakeContainer) Stop(_ context.Context, name string) error { return nil }
 func (f *fakeContainer) Delete(_ context.Context, name string) error {
