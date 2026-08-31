@@ -1,32 +1,29 @@
-package model
+package cmd
 
 import (
 	"encoding/json"
 	"testing"
 	"time"
+
+	"github.com/hocicopollo02/sandbox/internal/model"
 )
 
-func TestInfoJSONHasStableKeys(t *testing.T) {
-	info := Info{
-		Record: Record{
+func TestMarshalInfoJSONHasStableKeysWithEmptyHomePath(t *testing.T) {
+	data, err := marshalInfoJSON(model.Info{
+		Record: model.Record{
 			Name:         "gentle-ai",
 			Distribution: "arch",
 			Image:        "docker.io/library/archlinux:latest",
-			Persistence:  Persistent,
-			HomeMode:     IsolatedHome,
-			HomePath:     "/tmp/homes/gentle-ai",
+			Persistence:  model.Persistent,
+			HomeMode:     model.IsolatedHome,
 			CreatedAt:    time.Date(2026, 8, 30, 12, 0, 0, 0, time.UTC),
 		},
-		Status: Running,
-	}
-	data, err := json.Marshal(info)
+		Status: model.Running,
+	})
 	if err != nil {
 		t.Fatal(err)
 	}
-	var keys []string
-	if err := json.Unmarshal(data, &struct{}{}); err != nil {
-		t.Fatal(err)
-	}
+
 	var raw map[string]json.RawMessage
 	if err := json.Unmarshal(data, &raw); err != nil {
 		t.Fatalf("unmarshal keys: %v", err)
@@ -40,20 +37,10 @@ func TestInfoJSONHasStableKeys(t *testing.T) {
 			t.Errorf("json key %q missing; got %v", key, raw)
 		}
 	}
-	for key := range raw {
-		found := false
-		for _, expected := range want {
-			if key == expected {
-				found = true
-				break
-			}
-		}
-		if !found {
-			t.Errorf("unexpected json key %q; want %v", key, want)
-		}
+	if string(raw["home_path"]) != `""` {
+		t.Errorf("home_path = %s, want empty string", raw["home_path"])
 	}
 	if string(raw["status"]) != `"running"` {
-		t.Errorf("status = %s, want \"running\"", raw["status"])
+		t.Errorf("status = %s, want running", raw["status"])
 	}
-	_ = keys
 }

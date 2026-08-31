@@ -6,9 +6,34 @@ import (
 	"path/filepath"
 	"time"
 
+	"github.com/hocicopollo02/sandbox/internal/model"
 	"github.com/hocicopollo02/sandbox/internal/sandbox"
 	"github.com/spf13/cobra"
 )
+
+type infoJSONView struct {
+	Name         string            `json:"name"`
+	Distribution string            `json:"distribution"`
+	Image        string            `json:"image"`
+	Persistence  model.Persistence `json:"persistence"`
+	HomeMode     model.HomeMode    `json:"home_mode"`
+	HomePath     string            `json:"home_path"`
+	CreatedAt    time.Time         `json:"created_at"`
+	Status       model.Status      `json:"status"`
+}
+
+func marshalInfoJSON(info model.Info) ([]byte, error) {
+	return json.MarshalIndent(infoJSONView{
+		Name:         info.Name,
+		Distribution: info.Distribution,
+		Image:        info.Image,
+		Persistence:  info.Persistence,
+		HomeMode:     info.HomeMode,
+		HomePath:     info.HomePath,
+		CreatedAt:    info.CreatedAt,
+		Status:       info.Status,
+	}, "", "  ")
+}
 
 func newInfoCommand(appState *app) *cobra.Command {
 	var asJSON bool
@@ -27,7 +52,7 @@ func newInfoCommand(appState *app) *cobra.Command {
 				return err
 			}
 			if asJSON {
-				data, err := json.MarshalIndent(info, "", "  ")
+				data, err := marshalInfoJSON(info)
 				if err != nil {
 					return err
 				}
