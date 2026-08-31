@@ -50,6 +50,10 @@ sandbox doctor [--json]
 sandbox version
 ```
 
+El flag global `--error-format json` hace que los errores operativos se
+emitan como un único objeto JSON en stderr; su contrato está documentado en la
+[interfaz para agentes](agents.md#machine-error-codes).
+
 Aliases: `ls`, `shell`, `rm`.
 
 ## `exec`
