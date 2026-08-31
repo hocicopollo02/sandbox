@@ -1477,10 +1477,10 @@ Los agentes sin TTY son usuarios de primera clase. El contrato máquina completo
 vive en [`docs/agents.md`](docs/agents.md), y las instrucciones para agentes
 que contribuyen al repositorio en `AGENTS.md`.
 
-Ergonomía implementada (v1.1.x / v1.2.0):
+Ergonomía implementada y pendiente (v1.1.x / v1.2.0):
 
 | Ítem | Beneficio para el agente |
 |------|--------------------------|
 | `info --json` | Detalles de un sandbox sin parsear texto |
 | `doctor --json` | Veredicto de preparación del host en un round-trip |
-| Códigos de error máquina (`E_EXISTS`, `E_NOT_FOUND`) | Distinguir clases de error sin matching de texto |
+| Códigos de error máquina (`E_EXISTS`, `E_NOT_FOUND`) (pendiente) | Distinguir clases de error sin matching de texto |

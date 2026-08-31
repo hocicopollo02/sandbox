@@ -91,7 +91,7 @@ describes the contract; if code and this document disagree, it is a bug.
 
 See the agent ergonomics roadmap in [`PRD.md`](../PRD.md#49-interfaz-para-agentes).
 
-Implemented (see `PRD.md` section 49 and issues #16-#18): `info NAME --json`,
+Implemented (see `PRD.md` section 49 and issues #19, #20, and #22): `info NAME --json`,
 `doctor --json` (exit 1 when the host is not ready), and idempotent lifecycle
 flags `create --if-not-exists` / `delete --if-exists` (a stale reservation is
 reported as an actionable error pointing at `delete --if-exists --yes`).
