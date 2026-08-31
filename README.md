@@ -19,7 +19,8 @@ Flujo no interactivo:
 sandbox create gentle-ai \
   --distro arch \
   --persistent \
-  --isolated-home
+  --isolated-home \
+  --no-enter
 
 sandbox enter gentle-ai
 sandbox list
