@@ -91,10 +91,15 @@ func buildDoctorChecks(appState *app) ([]doctorCheck, error) {
 
 	rootlessOK := false
 	var rootlessDetail string
-	if podmanOK && runtimeOK {
+	if podmanOK {
 		switch {
 		case os.Geteuid() == 0:
 			rootlessDetail = "sandbox must run as a normal user; do not use sudo podman"
+		case !runtimeOK:
+			_, err := podman.ParseRootless(infoData)
+			if err != nil {
+				rootlessDetail = err.Error()
+			}
 		default:
 			rootless, err := podman.ParseRootless(infoData)
 			if err != nil {
