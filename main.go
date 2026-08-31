@@ -15,6 +15,10 @@ func main() {
 		if errors.As(err, &exitErr) {
 			os.Exit(exitErr.Code)
 		}
+		if line, ok := cmd.RenderError(err, cmd.ErrorFormat); ok {
+			fmt.Fprintln(os.Stderr, line)
+			os.Exit(1)
+		}
 		fmt.Fprintln(os.Stderr, err)
 		os.Exit(1)
 	}

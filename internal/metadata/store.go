@@ -11,7 +11,7 @@ import (
 	"github.com/hocicopollo02/sandbox/internal/model"
 )
 
-var ErrNotFound = errors.New("sandbox metadata not found")
+var ErrNotFound = model.ErrNotFound
 
 type Paths struct {
 	DataRoot string
@@ -102,7 +102,7 @@ func (s *Store) SaveExclusive(record model.Record) error {
 	}
 	file, err := os.OpenFile(s.file(record.Name), os.O_WRONLY|os.O_CREATE|os.O_EXCL, 0600)
 	if errors.Is(err, os.ErrExist) {
-		return fmt.Errorf("sandbox %q already exists: %w", record.Name, os.ErrExist)
+		return fmt.Errorf("sandbox %q already exists: %w", record.Name, model.ErrExists)
 	}
 	if err != nil {
 		return fmt.Errorf("reserve metadata for %q: %w", record.Name, err)

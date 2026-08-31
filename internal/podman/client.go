@@ -9,6 +9,7 @@ import (
 	"time"
 
 	"github.com/hocicopollo02/sandbox/internal/execx"
+	"github.com/hocicopollo02/sandbox/internal/model"
 	"github.com/hocicopollo02/sandbox/internal/sandbox"
 )
 
@@ -20,7 +21,7 @@ func New(runner execx.Runner) *Client { return &Client{Runner: runner} }
 
 func (c *Client) Available() error {
 	if _, err := c.Runner.LookPath("podman"); err != nil {
-		return fmt.Errorf("podman is required but was not found; on Arch/Omarchy run: sudo pacman -S podman")
+		return fmt.Errorf("podman is required but was not found; on Arch/Omarchy run: sudo pacman -S podman: %w", model.ErrRuntimeUnavailable)
 	}
 	return nil
 }
@@ -143,7 +144,7 @@ func (c *Client) Status(ctx context.Context, name string) (sandbox.Status, error
 func (c *Client) Info(ctx context.Context) ([]byte, error) {
 	output, err := c.Runner.Run(ctx, "podman", "info", "--format", "json")
 	if err != nil {
-		return nil, fmt.Errorf("podman is not working: %s", strings.TrimSpace(string(output)))
+		return nil, fmt.Errorf("podman is not working: %s: %w", strings.TrimSpace(string(output)), model.ErrRuntimeUnavailable)
 	}
 	return output, nil
 }

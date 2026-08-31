@@ -64,7 +64,7 @@ func ValidateName(name string) (string, error) {
 		return "", fmt.Errorf("sandbox name is required")
 	}
 	if !validName.MatchString(name) {
-		return "", fmt.Errorf("invalid sandbox name %q: use lowercase letters, numbers, _ or -", name)
+		return "", fmt.Errorf("invalid sandbox name %q: use lowercase letters, numbers, _ or -: %w", name, ErrInvalidName)
 	}
 	return name, nil
 }
