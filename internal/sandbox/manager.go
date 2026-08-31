@@ -54,15 +54,22 @@ func (m *Manager) Create(ctx context.Context, options CreateOptions) (bool, erro
 	name, _ := ValidateName(options.Name)
 	options.Name = name
 
-	if err := m.Preflight(); err != nil {
-		return false, err
-	}
 	if _, err := m.Store.Get(name); err == nil {
 		if options.IfNotExists {
-			return false, nil
+			status, statusErr := m.Inspector.Status(ctx, name)
+			if statusErr != nil || status != Missing {
+				return false, nil
+			}
+			if err := m.Store.Delete(name); err != nil {
+				return false, err
+			}
+		} else {
+			return false, fmt.Errorf("sandbox %q already exists", name)
 		}
-		return false, fmt.Errorf("sandbox %q already exists", name)
 	} else if !errors.Is(err, metadata.ErrNotFound) {
+		return false, err
+	}
+	if err := m.Preflight(); err != nil {
 		return false, err
 	}
 	status, err := m.Inspector.Status(ctx, name)

@@ -3,11 +3,28 @@ package sandbox
 import (
 	"context"
 	"errors"
+	"fmt"
 	"os"
 	"testing"
 
 	"github.com/hocicopollo02/sandbox/internal/metadata"
 )
+
+type unavailableContainer struct {
+	fakeContainer
+	err error
+}
+
+func (c *unavailableContainer) Available() error { return c.err }
+
+type unavailableInspector struct {
+	fakeInspector
+	err error
+}
+
+func (i *unavailableInspector) Status(_ context.Context, _ string) (Status, error) {
+	return Missing, i.err
+}
 
 func TestCreateDuplicateWithIfNotExistsIsNoOp(t *testing.T) {
 	container := &fakeContainer{}
@@ -17,6 +34,7 @@ func TestCreateDuplicateWithIfNotExistsIsNoOp(t *testing.T) {
 	if _, err := manager.Create(context.Background(), opts); err != nil {
 		t.Fatal(err)
 	}
+	manager.Inspector.(*fakeInspector).status = Running
 	opts.IfNotExists = true
 	removed, err := manager.Create(context.Background(), opts)
 	if err != nil {
@@ -49,7 +67,7 @@ func TestCreateDuplicateWithoutIfNotExistsStillFails(t *testing.T) {
 	}
 }
 
-func TestCreateRaceLoserWithIfNotExistsIsNoOp(t *testing.T) {
+func TestCreateStaleReservationWithIfNotExistsIsRecreated(t *testing.T) {
 	container := &fakeContainer{}
 	manager, store := newTestManager(t, container)
 	distro, _ := FindDistribution("arch")
@@ -58,16 +76,34 @@ func TestCreateRaceLoserWithIfNotExistsIsNoOp(t *testing.T) {
 	if err := store.SaveExclusive(record); err != nil {
 		t.Fatal(err)
 	}
-	// Give the fake inspector a Missing answer so the loser passes the runtime check.
 	manager.Inspector = &fakeInspector{}
 	_, err := manager.Create(context.Background(), CreateOptions{
 		Name: "raced", Distribution: distro, Persistence: Persistent, HomeMode: IsolatedHome, IfNotExists: true,
 	})
 	if err != nil {
-		t.Fatalf("race loser with IfNotExists = %v, want nil", err)
+		t.Fatalf("stale reservation with IfNotExists = %v, want nil", err)
 	}
-	if len(container.created) != 0 {
-		t.Fatalf("loser created a container: %v", container.created)
+	if len(container.created) != 1 {
+		t.Fatalf("recreated containers = %v, want one", container.created)
+	}
+	if _, err := store.Get("raced"); err != nil {
+		t.Fatalf("recreated metadata missing: %v", err)
+	}
+}
+
+func TestCreateExistingWithIfNotExistsIgnoresRuntimeUnavailable(t *testing.T) {
+	container := &unavailableContainer{err: fmt.Errorf("container runtime unavailable")}
+	manager, store := newTestManager(t, &container.fakeContainer)
+	manager.Container = container
+	manager.Inspector = &unavailableInspector{err: fmt.Errorf("inspection unavailable")}
+	distro, _ := FindDistribution("arch")
+	if err := store.Save(Record{Name: "existing", Distribution: distro.ID, Image: distro.Image, Persistence: Persistent, HomeMode: IsolatedHome}); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := manager.Create(context.Background(), CreateOptions{
+		Name: "existing", Distribution: distro, Persistence: Persistent, HomeMode: IsolatedHome, IfNotExists: true,
+	}); err != nil {
+		t.Fatalf("existing sandbox with unavailable runtime = %v, want nil", err)
 	}
 }
 
