@@ -10,6 +10,7 @@ import (
 	"time"
 
 	"github.com/hocicopollo02/sandbox/internal/metadata"
+	"github.com/hocicopollo02/sandbox/internal/model"
 )
 
 type ContainerClient interface {
@@ -60,9 +61,9 @@ func (m *Manager) Create(ctx context.Context, options CreateOptions) (bool, erro
 			if statusErr != nil || status != Missing {
 				return false, nil
 			}
-			return false, fmt.Errorf("sandbox %q is held by incomplete metadata; run 'sandbox delete %s --if-exists --yes' and retry", name, name)
+			return false, model.CodedError(fmt.Sprintf("sandbox %q is held by incomplete metadata; run 'sandbox delete %s --if-exists --yes' and retry", name, name), model.ErrExists)
 		} else {
-			return false, fmt.Errorf("sandbox %q already exists", name)
+			return false, model.CodedError(fmt.Sprintf("sandbox %q already exists", name), model.ErrExists)
 		}
 	} else if !errors.Is(err, metadata.ErrNotFound) {
 		return false, err
@@ -75,7 +76,7 @@ func (m *Manager) Create(ctx context.Context, options CreateOptions) (bool, erro
 		return false, err
 	}
 	if status != Missing {
-		return false, fmt.Errorf("sandbox %q already exists outside sandbox metadata", name)
+		return false, model.CodedError(fmt.Sprintf("sandbox %q already exists outside sandbox metadata", name), model.ErrExists)
 	}
 	home := ""
 	if options.HomeMode == IsolatedHome {
@@ -84,7 +85,7 @@ func (m *Manager) Create(ctx context.Context, options CreateOptions) (bool, erro
 		}
 		home = m.Store.Home(name)
 		if _, err := os.Stat(home); err == nil {
-			return false, fmt.Errorf("isolated home already exists: %s", home)
+			return false, model.CodedError(fmt.Sprintf("isolated home already exists: %s", home), model.ErrExists)
 		} else if !errors.Is(err, os.ErrNotExist) {
 			return false, fmt.Errorf("check isolated home: %w", err)
 		}
@@ -101,7 +102,7 @@ func (m *Manager) Create(ctx context.Context, options CreateOptions) (bool, erro
 		CreatedAt:    time.Now().In(time.Local),
 	}
 	if err := m.Store.SaveExclusive(record); err != nil {
-		if options.IfNotExists && errors.Is(err, os.ErrExist) {
+		if options.IfNotExists && errors.Is(err, model.ErrExists) {
 			if _, lookupErr := m.Store.Get(name); lookupErr != nil {
 				return false, err
 			}
@@ -109,7 +110,7 @@ func (m *Manager) Create(ctx context.Context, options CreateOptions) (bool, erro
 			if statusErr != nil || status != Missing {
 				return false, nil
 			}
-			return false, fmt.Errorf("sandbox %q is held by incomplete metadata; run 'sandbox delete %s --if-exists --yes' and retry", name, name)
+			return false, model.CodedError(fmt.Sprintf("sandbox %q is held by incomplete metadata; run 'sandbox delete %s --if-exists --yes' and retry", name, name), model.ErrExists)
 		}
 		return false, err
 	}
@@ -177,7 +178,7 @@ func (m *Manager) Enter(ctx context.Context, name string) error {
 		return err
 	}
 	if _, err := m.Store.Get(name); errors.Is(err, metadata.ErrNotFound) {
-		return fmt.Errorf("sandbox %q does not exist", name)
+		return model.CodedError(fmt.Sprintf("sandbox %q does not exist", name), model.ErrNotFound)
 	} else if err != nil {
 		return err
 	}
@@ -186,7 +187,7 @@ func (m *Manager) Enter(ctx context.Context, name string) error {
 		return err
 	}
 	if status == Missing {
-		return fmt.Errorf("sandbox %q does not exist in the container runtime", name)
+		return model.CodedError(fmt.Sprintf("sandbox %q does not exist in the container runtime", name), model.ErrNotFound)
 	}
 	return m.Container.Enter(ctx, name)
 }
@@ -199,7 +200,7 @@ func (m *Manager) Exec(ctx context.Context, name string, command []string) error
 		return err
 	}
 	if _, err := m.Store.Get(name); errors.Is(err, metadata.ErrNotFound) {
-		return fmt.Errorf("sandbox %q does not exist", name)
+		return model.CodedError(fmt.Sprintf("sandbox %q does not exist", name), model.ErrNotFound)
 	} else if err != nil {
 		return err
 	}
@@ -208,7 +209,7 @@ func (m *Manager) Exec(ctx context.Context, name string, command []string) error
 		return err
 	}
 	if status == Missing {
-		return fmt.Errorf("sandbox %q does not exist in the container runtime", name)
+		return model.CodedError(fmt.Sprintf("sandbox %q does not exist in the container runtime", name), model.ErrNotFound)
 	}
 	if status == Unknown {
 		return fmt.Errorf("could not determine the status of sandbox %q", name)
@@ -248,7 +249,7 @@ func (m *Manager) Stop(ctx context.Context, name string) error {
 		return err
 	}
 	if _, err := m.Store.Get(name); errors.Is(err, metadata.ErrNotFound) {
-		return fmt.Errorf("sandbox %q does not exist", name)
+		return model.CodedError(fmt.Sprintf("sandbox %q does not exist", name), model.ErrNotFound)
 	} else if err != nil {
 		return err
 	}
@@ -257,7 +258,7 @@ func (m *Manager) Stop(ctx context.Context, name string) error {
 		return err
 	}
 	if status == Missing {
-		return fmt.Errorf("sandbox %q does not exist in the container runtime", name)
+		return model.CodedError(fmt.Sprintf("sandbox %q does not exist in the container runtime", name), model.ErrNotFound)
 	}
 	if status == Stopped {
 		return nil
@@ -272,7 +273,7 @@ func (m *Manager) Info(ctx context.Context, name string) (Info, error) {
 	}
 	record, err := m.Store.Get(name)
 	if errors.Is(err, metadata.ErrNotFound) {
-		return Info{}, fmt.Errorf("sandbox %q does not exist", name)
+		return Info{}, model.CodedError(fmt.Sprintf("sandbox %q does not exist", name), model.ErrNotFound)
 	}
 	if err != nil {
 		return Info{}, err
@@ -293,7 +294,7 @@ func (m *Manager) Lookup(_ context.Context, name string) (Info, error) {
 	}
 	record, err := m.Store.Get(name)
 	if errors.Is(err, metadata.ErrNotFound) {
-		return Info{}, fmt.Errorf("sandbox %q does not exist: %w", name, metadata.ErrNotFound)
+		return Info{}, model.CodedError(fmt.Sprintf("sandbox %q does not exist", name), model.ErrNotFound)
 	}
 	if err != nil {
 		return Info{}, err
@@ -311,7 +312,7 @@ func (m *Manager) Delete(ctx context.Context, name string, options DeleteOptions
 		if options.IfExists {
 			return nil
 		}
-		return fmt.Errorf("sandbox %q does not exist", name)
+		return model.CodedError(fmt.Sprintf("sandbox %q does not exist", name), model.ErrNotFound)
 	}
 	if err != nil {
 		return err

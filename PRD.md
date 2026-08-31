@@ -1480,7 +1480,7 @@ que contribuyen al repositorio en `AGENTS.md`.
 Ergonomía implementada y pendiente (v1.1.x / v1.2.0):
 
 | Ítem | Beneficio para el agente |
-|------|--------------------------|
+| ------ | -------------------------- |
 | `info --json` | Detalles de un sandbox sin parsear texto |
 | `doctor --json` | Veredicto de preparación del host en un round-trip |
-| Códigos de error máquina (`E_EXISTS`, `E_NOT_FOUND`) (pendiente) | Distinguir clases de error sin matching de texto |
+| Códigos de error máquina — implementado, ver [`docs/agents.md`](docs/agents.md) | Distinguir clases de error sin matching de texto |

@@ -9,6 +9,7 @@ import (
 	"time"
 
 	"github.com/hocicopollo02/sandbox/internal/execx"
+	"github.com/hocicopollo02/sandbox/internal/model"
 	"github.com/hocicopollo02/sandbox/internal/sandbox"
 )
 
@@ -20,7 +21,7 @@ func New(runner execx.Runner) *Client { return &Client{Runner: runner} }
 
 func (c *Client) Available() error {
 	if _, err := c.Runner.LookPath("podman"); err != nil {
-		return fmt.Errorf("podman is required but was not found; on Arch/Omarchy run: sudo pacman -S podman")
+		return model.CodedError("podman is required but was not found; on Arch/Omarchy run: sudo pacman -S podman", model.ErrRuntimeUnavailable)
 	}
 	return nil
 }
@@ -128,13 +129,13 @@ func (c *Client) Status(ctx context.Context, name string) (sandbox.Status, error
 		if isMissing(string(output)) {
 			return sandbox.Missing, nil
 		}
-		return sandbox.Unknown, fmt.Errorf("could not inspect sandbox %q: %s", name, strings.TrimSpace(string(output)))
+		return sandbox.Unknown, model.CodedError(fmt.Sprintf("could not inspect sandbox %q: %s", name, strings.TrimSpace(string(output))), model.ErrRuntimeUnavailable)
 	}
 	switch strings.TrimSpace(string(output)) {
 	case "running":
 		return sandbox.Running, nil
 	case "":
-		return sandbox.Unknown, fmt.Errorf("podman returned no status for sandbox %q", name)
+		return sandbox.Unknown, model.CodedError(fmt.Sprintf("podman returned no status for sandbox %q", name), model.ErrRuntimeUnavailable)
 	default:
 		return sandbox.Stopped, nil
 	}
@@ -143,7 +144,7 @@ func (c *Client) Status(ctx context.Context, name string) (sandbox.Status, error
 func (c *Client) Info(ctx context.Context) ([]byte, error) {
 	output, err := c.Runner.Run(ctx, "podman", "info", "--format", "json")
 	if err != nil {
-		return nil, fmt.Errorf("podman is not working: %s", strings.TrimSpace(string(output)))
+		return nil, model.CodedError(fmt.Sprintf("podman is not working: %s", strings.TrimSpace(string(output))), model.ErrRuntimeUnavailable)
 	}
 	return output, nil
 }
@@ -158,7 +159,7 @@ func (c *Client) Statuses(ctx context.Context, names []string) (map[string]sandb
 	}
 	output, err := c.Runner.Run(ctx, "podman", "ps", "-a", "--format", "{{.Names}} {{.State}}")
 	if err != nil {
-		return nil, fmt.Errorf("could not query sandbox states: %s", strings.TrimSpace(string(output)))
+		return nil, model.CodedError(fmt.Sprintf("could not query sandbox states: %s", strings.TrimSpace(string(output))), model.ErrRuntimeUnavailable)
 	}
 	for _, line := range strings.Split(strings.TrimSpace(string(output)), "\n") {
 		if line == "" {
@@ -198,9 +199,9 @@ func ParseRootless(data []byte) (bool, error) {
 func commandError(action, name string, output []byte, err error) error {
 	detail := strings.TrimSpace(string(output))
 	if detail == "" {
-		return fmt.Errorf("could not %s sandbox %q: %w; run with --verbose for details", action, name, err)
+		return model.CodedError(fmt.Sprintf("could not %s sandbox %q: %v; run with --verbose for details", action, name, err), model.ErrRuntimeUnavailable)
 	}
-	return fmt.Errorf("could not %s sandbox %q: %s", action, name, detail)
+	return model.CodedError(fmt.Sprintf("could not %s sandbox %q: %s", action, name, detail), model.ErrRuntimeUnavailable)
 }
 
 func isMissing(output string) bool {

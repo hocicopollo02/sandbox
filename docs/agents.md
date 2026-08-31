@@ -69,7 +69,7 @@ sandbox delete task-42 --yes --if-exists
 ## Exit codes
 
 | Code | Meaning |
-|------|---------|
+| ------ | --------- |
 | `0` | success |
 | `1` | operational error (validation, collision, runtime failure) |
 | process exit code | `exec` propagates the executed command's exit code |
@@ -95,3 +95,29 @@ Implemented (see `PRD.md` section 49 and issues #19, #20, and #22): `info NAME -
 `doctor --json` (exit 1 when the host is not ready), and idempotent lifecycle
 flags `create --if-not-exists` / `delete --if-exists` (a stale reservation is
 reported as an actionable error pointing at `delete --if-exists --yes`).
+
+## Machine error codes
+
+Every operational error maps to a stable code emitted as a single JSON object
+on stderr with the global flag `--error-format json`:
+
+```bash
+sandbox --error-format json exec missing -- echo hi
+```
+
+```json
+{"error":{"code":"E_NOT_FOUND","message":"sandbox \"missing\" does not exist"}}
+```
+
+| Code | Meaning |
+| ------ | --------- |
+| `E_EXISTS` | name or isolated home already taken |
+| `E_NOT_FOUND` | sandbox or metadata does not exist |
+| `E_INVALID_NAME` | sandbox name does not match `[a-z0-9_-]+` |
+| `E_RUNTIME` | Podman unavailable or not working |
+| `E_ERROR` | any other failure |
+
+With `--error-format json` the human message is not printed; exit code remains
+`1` for operational errors. `exec` still propagates the executed process's own
+exit code and never wraps it in JSON. Verbose command diagnostics are suppressed
+in JSON mode so stderr contains exactly one JSON object.

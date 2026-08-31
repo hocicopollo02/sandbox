@@ -2,6 +2,7 @@ package cmd
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 	"io"
 	"os"
@@ -11,6 +12,7 @@ import (
 	"github.com/hocicopollo02/sandbox/internal/config"
 	"github.com/hocicopollo02/sandbox/internal/execx"
 	"github.com/hocicopollo02/sandbox/internal/metadata"
+	"github.com/hocicopollo02/sandbox/internal/model"
 	"github.com/hocicopollo02/sandbox/internal/podman"
 	core "github.com/hocicopollo02/sandbox/internal/sandbox"
 	"github.com/hocicopollo02/sandbox/internal/ui"
@@ -22,6 +24,9 @@ var (
 	Commit    = "unknown"
 	BuildDate = "unknown"
 )
+
+// ErrorFormat selects the error output format for agent integrations.
+var ErrorFormat = "text"
 
 type app struct {
 	manager *core.Manager
@@ -67,8 +72,9 @@ func NewRootCommand(home string, in io.Reader, out, errOut io.Writer) (*cobra.Co
 		},
 	}
 	root.PersistentFlags().BoolVar(&appState.verbose, "verbose", false, "show external command details")
+	root.PersistentFlags().StringVar(&ErrorFormat, "error-format", "text", "error output format: text or json")
 	root.PersistentPreRunE = func(cmd *cobra.Command, args []string) error {
-		runner.Verbose = appState.verbose
+		runner.Verbose = appState.verbose && ErrorFormat != "json"
 		if os.Geteuid() == 0 && cmd.Name() != "doctor" && cmd.Name() != "version" {
 			return fmt.Errorf("sandbox must run as a normal user; do not use sudo sandbox or sudo podman")
 		}
@@ -102,4 +108,31 @@ func Execute() error {
 	defer stop()
 	root.SetContext(ctx)
 	return root.Execute()
+}
+
+// renderError returns the machine JSON line when format is json, or the plain
+// message otherwise. The bool reports whether the caller should use the machine
+// line instead of the human message.
+func renderError(err error, format string) (string, bool) {
+	if format != "json" {
+		return "", false
+	}
+	payload := struct {
+		Error struct {
+			Code    string `json:"code"`
+			Message string `json:"message"`
+		} `json:"error"`
+	}{}
+	payload.Error.Code = model.ErrorCode(err)
+	payload.Error.Message = err.Error()
+	data, marshalErr := json.Marshal(payload)
+	if marshalErr != nil {
+		return "", false
+	}
+	return string(data), true
+}
+
+// RenderError exposes renderError for main's exit handling.
+func RenderError(err error, format string) (string, bool) {
+	return renderError(err, format)
 }
