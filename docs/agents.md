@@ -45,6 +45,11 @@ sandbox delete task-42 --yes
   `missing`, or `unknown`. `missing` means stale metadata: the container is
   gone. `unknown` means a tracked container has a blank runtime state and must
   be treated as not usable.
+- `doctor --json` emits one object with `ok` and `checks` keys. `checks` is an
+  ordered array of `{name, ok, detail}` results for Podman installation,
+  runtime operation, rootless mode, and user namespaces. `detail` is omitted
+  when a check succeeds. The command writes only JSON to stdout and exits 1
+  when `ok` is false.
 - `info NAME --json` emits a single object with stable keys: `name`,
   `distribution`, `image`, `persistence`, `home_mode`, `home_path`,
   `created_at`, and `status`. `status` uses the same values and meanings as
