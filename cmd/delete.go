@@ -1,8 +1,10 @@
 package cmd
 
 import (
+	"errors"
 	"fmt"
 
+	"github.com/hocicopollo02/sandbox/internal/metadata"
 	"github.com/hocicopollo02/sandbox/internal/sandbox"
 	"github.com/hocicopollo02/sandbox/internal/ui"
 	"github.com/spf13/cobra"
@@ -23,7 +25,7 @@ func newDeleteCommand(appState *app) *cobra.Command {
 		RunE: func(cmd *cobra.Command, args []string) error {
 			info, err := appState.manager.Lookup(cmd.Context(), args[0])
 			if err != nil {
-				if ifExists {
+				if ifExists && errors.Is(err, metadata.ErrNotFound) {
 					_, _ = fmt.Fprintf(appState.out, "Sandbox %s does not exist; nothing to do\n", args[0])
 					return nil
 				}

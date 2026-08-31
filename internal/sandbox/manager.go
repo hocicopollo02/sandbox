@@ -96,7 +96,7 @@ func (m *Manager) Create(ctx context.Context, options CreateOptions) (bool, erro
 		CreatedAt:    time.Now().In(time.Local),
 	}
 	if err := m.Store.SaveExclusive(record); err != nil {
-		if options.IfNotExists {
+		if options.IfNotExists && errors.Is(err, os.ErrExist) {
 			return false, nil
 		}
 		return false, err
@@ -281,7 +281,7 @@ func (m *Manager) Lookup(_ context.Context, name string) (Info, error) {
 	}
 	record, err := m.Store.Get(name)
 	if errors.Is(err, metadata.ErrNotFound) {
-		return Info{}, fmt.Errorf("sandbox %q does not exist", name)
+		return Info{}, fmt.Errorf("sandbox %q does not exist: %w", name, metadata.ErrNotFound)
 	}
 	if err != nil {
 		return Info{}, err
