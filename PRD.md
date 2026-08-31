@@ -1464,3 +1464,29 @@ La CLI debe ocultar esa complejidad y presentar simplemente:
 ```
 
 Ese es el producto.
+
+---
+
+# 49. Interfaz para agentes
+
+Los agentes sin TTY son usuarios de primera clase. El contrato máquina completo
+vive en `docs/agents.md` y las instrucciones para agentes que contribuyen al
+repositorio en `AGENTS.md`. Principios:
+
+1. **Cero prompts cuando se pide explícitamente**: `--yes --no-enter` nunca
+   interactúa.
+2. **Verdad en el runtime**: `list --json` y el estado reportado se contrastan
+   siempre con Podman; la metadata es descriptiva.
+3. **Códigos de salida predecibles**: `exec` propaga el exit code del proceso;
+   los errores operativos son `1`.
+4. **Estabilidad SemVer**: claves JSON, comandos y flags existentes no cambian
+   sin bump mayor.
+
+Roadmap de ergonomía (pendiente de implementar):
+
+| Ítem | Beneficio para el agente |
+|------|--------------------------|
+| `info --json` | Detalles de un sandbox sin parsear texto |
+| `doctor --json` | Veredicto de preparación del host en un round-trip |
+| `create --if-not-exists` / `delete --if-exists` | Elimina el patrón check-then-act del loop del agente |
+| Códigos de error máquina (`E_EXISTS`, `E_NOT_FOUND`) | Distinguir clases de error sin matching de texto |

@@ -36,6 +36,8 @@ Para ejecutar comandos sin TTY en un sandbox, consulta [`sandbox exec`](docs/usa
 - [Arquitectura](docs/architecture.md)
 - [Seguridad y aislamiento](docs/security.md)
 - [Desarrollo y releases](docs/development.md)
+- [Interfaz para agentes](docs/agents.md)
+- [AGENTS.md](AGENTS.md)
 - [PRD](PRD.md)
 
 ## Garantía principal
