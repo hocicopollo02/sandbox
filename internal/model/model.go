@@ -98,6 +98,7 @@ type CreateOptions struct {
 	Persistence  Persistence
 	HomeMode     HomeMode
 	AutoEnter    bool
+	IfNotExists  bool
 }
 
 func (o CreateOptions) Validate() error {
@@ -124,4 +125,5 @@ func (o CreateOptions) Validate() error {
 
 type DeleteOptions struct {
 	DeleteHome bool
+	IfExists   bool
 }

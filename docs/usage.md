@@ -44,7 +44,7 @@ sandbox list [--json]
 sandbox enter [NAME]
 sandbox exec NAME -- COMMAND [ARG...]
 sandbox stop NAME
-sandbox delete NAME [--yes] [--keep-home]
+sandbox delete NAME [--yes] [--keep-home] [--if-exists]
 sandbox info NAME [--json]
 sandbox doctor [--json]
 sandbox version
@@ -120,6 +120,7 @@ El valor de `status` es uno de `running`, `stopped`, `missing` o `unknown`.
 --isolated-home
 --no-enter
 --yes
+--if-not-exists
 --verbose
 ```
 
@@ -150,4 +151,5 @@ La metadata no es la única fuente de verdad: el estado se contrasta con Podman.
 ## Eliminación
 
 Por defecto `delete` elimina el contenedor, la metadata y el home aislado.
-Usa `--keep-home` para conservar los datos del home.
+Usa `--keep-home` para conservar los datos del home. Usa `--if-exists` para
+que la ausencia del sandbox sea un no-op exitoso.

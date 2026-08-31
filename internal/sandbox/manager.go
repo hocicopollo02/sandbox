@@ -54,12 +54,20 @@ func (m *Manager) Create(ctx context.Context, options CreateOptions) (bool, erro
 	name, _ := ValidateName(options.Name)
 	options.Name = name
 
-	if err := m.Preflight(); err != nil {
+	if _, err := m.Store.Get(name); err == nil {
+		if options.IfNotExists {
+			status, statusErr := m.Inspector.Status(ctx, name)
+			if statusErr != nil || status != Missing {
+				return false, nil
+			}
+			return false, fmt.Errorf("sandbox %q is held by incomplete metadata; run 'sandbox delete %s --if-exists --yes' and retry", name, name)
+		} else {
+			return false, fmt.Errorf("sandbox %q already exists", name)
+		}
+	} else if !errors.Is(err, metadata.ErrNotFound) {
 		return false, err
 	}
-	if _, err := m.Store.Get(name); err == nil {
-		return false, fmt.Errorf("sandbox %q already exists", name)
-	} else if !errors.Is(err, metadata.ErrNotFound) {
+	if err := m.Preflight(); err != nil {
 		return false, err
 	}
 	status, err := m.Inspector.Status(ctx, name)
@@ -93,6 +101,16 @@ func (m *Manager) Create(ctx context.Context, options CreateOptions) (bool, erro
 		CreatedAt:    time.Now().In(time.Local),
 	}
 	if err := m.Store.SaveExclusive(record); err != nil {
+		if options.IfNotExists && errors.Is(err, os.ErrExist) {
+			if _, lookupErr := m.Store.Get(name); lookupErr != nil {
+				return false, err
+			}
+			status, statusErr := m.Inspector.Status(ctx, name)
+			if statusErr != nil || status != Missing {
+				return false, nil
+			}
+			return false, fmt.Errorf("sandbox %q is held by incomplete metadata; run 'sandbox delete %s --if-exists --yes' and retry", name, name)
+		}
 		return false, err
 	}
 	discardReservation := func() error { return m.Store.Delete(name) }
@@ -275,7 +293,7 @@ func (m *Manager) Lookup(_ context.Context, name string) (Info, error) {
 	}
 	record, err := m.Store.Get(name)
 	if errors.Is(err, metadata.ErrNotFound) {
-		return Info{}, fmt.Errorf("sandbox %q does not exist", name)
+		return Info{}, fmt.Errorf("sandbox %q does not exist: %w", name, metadata.ErrNotFound)
 	}
 	if err != nil {
 		return Info{}, err
@@ -290,6 +308,9 @@ func (m *Manager) Delete(ctx context.Context, name string, options DeleteOptions
 	}
 	record, err := m.Store.Get(name)
 	if errors.Is(err, metadata.ErrNotFound) {
+		if options.IfExists {
+			return nil
+		}
 		return fmt.Errorf("sandbox %q does not exist", name)
 	}
 	if err != nil {
@@ -300,7 +321,10 @@ func (m *Manager) Delete(ctx context.Context, name string, options DeleteOptions
 		if err != nil {
 			return fmt.Errorf("resolve managed isolated home: %w", err)
 		}
-		actual, err := filepath.Abs(filepath.Clean(record.HomePath))
+		actual := expected
+		if record.HomePath != "" {
+			actual, err = filepath.Abs(filepath.Clean(record.HomePath))
+		}
 		if err != nil || actual != expected {
 			return fmt.Errorf("refusing to delete isolated home outside managed directory")
 		}
