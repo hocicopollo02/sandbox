@@ -20,7 +20,8 @@ sandbox create gentle-ai \
   --distro arch \
   --persistent \
   --isolated-home \
-  --no-enter
+  --no-enter \
+  --yes
 
 sandbox enter gentle-ai
 sandbox list
