@@ -194,6 +194,7 @@ La V1 debe implementar:
 sandbox create
 sandbox list
 sandbox enter
+sandbox exec NAME -- COMMAND [ARG...]
 sandbox stop
 sandbox delete
 sandbox info
@@ -1377,6 +1378,7 @@ La V1 se considerará completada cuando:
 - persistent sobrevive al salir;
 - `sandbox list` muestra los persistentes;
 - `sandbox enter NAME` funciona;
+- `sandbox exec NAME -- COMMAND [ARG...]` ejecuta comandos sin TTY y propaga su código de salida;
 - `sandbox stop NAME` funciona;
 - `sandbox delete NAME` funciona;
 - delete limpia el home aislado;

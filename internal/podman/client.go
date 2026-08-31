@@ -79,6 +79,33 @@ func (c *Client) Enter(ctx context.Context, name string) error {
 	return nil
 }
 
+// Exec runs a command inside a running or stopped sandbox without a TTY,
+// starting the sandbox first when needed. Output passes through unchanged and
+// the process exit code is preserved as *execx.ExitError.
+func (c *Client) Exec(ctx context.Context, name string, command []string) error {
+	status, err := c.Status(ctx, name)
+	if err != nil {
+		return err
+	}
+	if status == sandbox.Missing {
+		return fmt.Errorf("sandbox %q does not exist in the container runtime", name)
+	}
+	if status == sandbox.Unknown {
+		return fmt.Errorf("could not determine the status of sandbox %q", name)
+	}
+	if status == sandbox.Stopped {
+		output, err := c.Runner.Run(ctx, "podman", "start", name)
+		if err != nil {
+			return commandError("start", name, output, err)
+		}
+	}
+	args := append([]string{"exec", name}, command...)
+	if err := c.Runner.RunStream(ctx, "podman", args...); err != nil {
+		return err
+	}
+	return nil
+}
+
 func (c *Client) Stop(ctx context.Context, name string) error {
 	output, err := c.Runner.Run(ctx, "podman", "stop", "--time", "10", name)
 	if err != nil {

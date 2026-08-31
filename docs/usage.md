@@ -42,6 +42,7 @@ Al salir del shell se eliminan el contenedor y el home temporal.
 sandbox create [NAME] [flags]
 sandbox list [--json]
 sandbox enter [NAME]
+sandbox exec NAME -- COMMAND [ARG...]
 sandbox stop NAME
 sandbox delete NAME [--yes] [--keep-home]
 sandbox info NAME
@@ -50,6 +51,36 @@ sandbox version
 ```
 
 Aliases: `ls`, `shell`, `rm`.
+
+## `exec`
+
+Ejecuta un comando dentro de un sandbox **sin TTY**, pensado para
+automatización, scripts y agentes de CI:
+
+```bash
+sandbox create review-123 \
+  --distro ubuntu \
+  --persistent \
+  --isolated-home \
+  --no-enter \
+  --yes
+
+sandbox exec review-123 -- git clone https://github.com/org/repo.git
+sandbox exec review-123 -- bash -lc 'cd repo && go test ./...'
+sandbox delete review-123 --yes
+```
+
+- Un sandbox persistente detenido se arranca automáticamente antes de ejecutar
+  el comando, igual que `enter`.
+- Los argumentos tras `--` llegan al proceso sin reinterpretarse con un shell
+  ni con una TTY; stdout y stderr se conservan.
+- El código de salida del comando se convierte en el código de salida de la
+  CLI.
+- Los errores de sandbox inexistente, no administrado o con estado desconocido
+  son los mismos que en `enter`.
+
+Fuera de alcance inicial: `--env`, `--workdir`, mounts adicionales, publicación
+de puertos y un comando compuesto tipo `sandbox run`.
 
 ## `create`
 

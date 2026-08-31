@@ -16,6 +16,7 @@ type ContainerClient interface {
 	Available() error
 	Create(ctx context.Context, name, image, home string) error
 	Enter(ctx context.Context, name string) error
+	Exec(ctx context.Context, name string, command []string) error
 	Stop(ctx context.Context, name string) error
 	Delete(ctx context.Context, name string) error
 }
@@ -170,6 +171,31 @@ func (m *Manager) Enter(ctx context.Context, name string) error {
 		return fmt.Errorf("sandbox %q does not exist in the container runtime", name)
 	}
 	return m.Container.Enter(ctx, name)
+}
+
+// Exec runs a command inside a sandbox without a TTY, reusing the same
+// existence and status checks as Enter.
+func (m *Manager) Exec(ctx context.Context, name string, command []string) error {
+	name, err := ValidateName(name)
+	if err != nil {
+		return err
+	}
+	if _, err := m.Store.Get(name); errors.Is(err, metadata.ErrNotFound) {
+		return fmt.Errorf("sandbox %q does not exist", name)
+	} else if err != nil {
+		return err
+	}
+	status, err := m.Inspector.Status(ctx, name)
+	if err != nil {
+		return err
+	}
+	if status == Missing {
+		return fmt.Errorf("sandbox %q does not exist in the container runtime", name)
+	}
+	if status == Unknown {
+		return fmt.Errorf("could not determine the status of sandbox %q", name)
+	}
+	return m.Container.Exec(ctx, name, command)
 }
 
 func (m *Manager) List(ctx context.Context) ([]ListEntry, error) {

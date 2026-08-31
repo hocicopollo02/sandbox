@@ -41,7 +41,7 @@ func NewRootCommand(home string, in io.Reader, out, errOut io.Writer) (*cobra.Co
 		return nil, err
 	}
 	paths := metadata.PathsFor(home)
-	runner := &execx.CommandRunner{Err: errOut}
+	runner := &execx.CommandRunner{Out: out, Err: errOut}
 	appState := &app{
 		config: cfg,
 		runner: runner,
@@ -79,6 +79,7 @@ func NewRootCommand(home string, in io.Reader, out, errOut io.Writer) (*cobra.Co
 		newCreateCommand(appState),
 		newListCommand(appState),
 		newEnterCommand(appState),
+		newExecCommand(appState),
 		newStopCommand(appState),
 		newDeleteCommand(appState),
 		newInfoCommand(appState),
