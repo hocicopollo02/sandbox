@@ -5,9 +5,8 @@ import (
 	"errors"
 	"fmt"
 	"os"
-	"path/filepath"
+	"strings"
 	"testing"
-	"time"
 
 	"github.com/hocicopollo02/sandbox/internal/metadata"
 )
@@ -69,69 +68,23 @@ func TestCreateDuplicateWithoutIfNotExistsStillFails(t *testing.T) {
 	}
 }
 
-func TestCreateStaleReservationWithIfNotExistsIsRecreated(t *testing.T) {
+func TestCreateStaleReservationWithIfNotExistsFailsActionably(t *testing.T) {
 	container := &fakeContainer{}
-	manager, store := newTestManager(t, container)
+	manager, _ := newTestManager(t, container)
 	distro, _ := FindDistribution("arch")
-	// Simulate the winner reserving the name before the loser reaches SaveExclusive.
 	record := Record{Name: "raced", Distribution: distro.ID, Image: distro.Image, Persistence: Persistent, HomeMode: IsolatedHome}
-	if err := store.SaveExclusive(record); err != nil {
-		t.Fatal(err)
-	}
-	if err := os.MkdirAll(store.Home("raced"), 0700); err != nil {
-		t.Fatal(err)
-	}
-	marker := filepath.Join(store.Home("raced"), "orphan")
-	if err := os.WriteFile(marker, []byte("stale"), 0600); err != nil {
+	if err := manager.Store.SaveExclusive(record); err != nil {
 		t.Fatal(err)
 	}
 	manager.Inspector = &fakeInspector{}
 	_, err := manager.Create(context.Background(), CreateOptions{
 		Name: "raced", Distribution: distro, Persistence: Persistent, HomeMode: IsolatedHome, IfNotExists: true,
 	})
-	if err != nil {
-		t.Fatalf("stale reservation with IfNotExists = %v, want nil", err)
-	}
-	if len(container.created) != 1 {
-		t.Fatalf("recreated containers = %v, want one", container.created)
-	}
-	if _, err := store.Get("raced"); err != nil {
-		t.Fatalf("recreated metadata missing: %v", err)
-	}
-	if _, err := os.Stat(marker); !os.IsNotExist(err) {
-		t.Fatalf("stale home contents remain: %v", err)
-	}
-}
-
-func TestCreateStaleReservationDoesNotDeleteNewReservation(t *testing.T) {
-	container := &fakeContainer{}
-	manager, store := newTestManager(t, container)
-	distro, _ := FindDistribution("arch")
-	old := Record{Name: "raced", Distribution: distro.ID, Image: distro.Image, Persistence: Persistent, HomeMode: IsolatedHome}
-	if err := store.SaveExclusive(old); err != nil {
-		t.Fatal(err)
-	}
-	newRecord := old
-	newRecord.CreatedAt = time.Now().Add(time.Second)
-	manager.Inspector = &racingInspector{during: func() {
-		if err := store.Delete(old.Name); err != nil {
-			t.Errorf("old reservation removal failed: %v", err)
-		}
-		if err := store.SaveExclusive(newRecord); err != nil {
-			t.Errorf("new reservation failed: %v", err)
-		}
-	}}
-	_, err := manager.Create(context.Background(), CreateOptions{
-		Name: old.Name, Distribution: distro, Persistence: Persistent, HomeMode: IsolatedHome, IfNotExists: true,
-	})
-	if err != nil {
-		t.Fatalf("stale reservation race = %v, want nil", err)
+	if err == nil || !strings.Contains(err.Error(), "sandbox delete raced --if-exists --yes") {
+		t.Fatalf("stale reservation error = %v, want actionable cleanup guidance", err)
 	}
 	if len(container.created) != 0 {
 		t.Fatalf("created containers = %v, want none", container.created)
-	}
-	if record, err := store.Get(old.Name); err != nil || !record.CreatedAt.Equal(newRecord.CreatedAt) {
-		t.Fatalf("reservation after race = %#v, %v; want new reservation", record, err)
 	}
 }
 

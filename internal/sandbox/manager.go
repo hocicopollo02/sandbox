@@ -54,26 +54,13 @@ func (m *Manager) Create(ctx context.Context, options CreateOptions) (bool, erro
 	name, _ := ValidateName(options.Name)
 	options.Name = name
 
-	var existing Record
-	if record, err := m.Store.Get(name); err == nil {
-		existing = record
+	if _, err := m.Store.Get(name); err == nil {
 		if options.IfNotExists {
 			status, statusErr := m.Inspector.Status(ctx, name)
 			if statusErr != nil || status != Missing {
 				return false, nil
 			}
-			removed, err := m.Store.DeleteIfMatch(existing, func() error {
-				if existing.HomeMode == IsolatedHome {
-					return m.Store.RemoveHome(name)
-				}
-				return nil
-			})
-			if err != nil {
-				return false, err
-			}
-			if !removed {
-				return false, nil
-			}
+			return false, fmt.Errorf("sandbox %q is held by stale metadata; run 'sandbox delete %s --if-exists --yes' to clean it up", name, name)
 		} else {
 			return false, fmt.Errorf("sandbox %q already exists", name)
 		}
