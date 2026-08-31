@@ -24,10 +24,11 @@ sandbox delete task-42 --yes
 ## Guarantees
 
 - `create --yes --no-enter` is fully non-interactive only when `--distro`,
-  `--persistent`/`--disposable`, and `--isolated-home`/`--shared-home` are
-  supplied explicitly. If any of those options are omitted, the interactive
-  wizard runs even with `--yes --no-enter`. It fails if the name is taken; the
-  name reservation is atomic, so concurrent creates cannot corrupt each other.
+  `--persistent`/`--disposable`, and `--isolated-home` are supplied explicitly.
+  If any of those options are omitted, the interactive wizard runs even with
+  `--yes --no-enter`. `--shared-home` is rejected with an error after an
+  interactive prompt. It fails if the name is taken; the name reservation is
+  atomic, so concurrent creates cannot corrupt each other.
 - `exec NAME -- COMMAND [ARG...]`:
   - requires no TTY;
   - passes arguments to the process without shell reinterpretation;
