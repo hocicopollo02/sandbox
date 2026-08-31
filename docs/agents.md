@@ -23,7 +23,10 @@ sandbox delete task-42 --yes
 
 ## Guarantees
 
-- `create --yes --no-enter` never prompts. It fails if the name is taken; the
+- `create --yes --no-enter` is fully non-interactive only when `--distro`,
+  `--persistent`/`--disposable`, and `--isolated-home`/`--shared-home` are
+  supplied explicitly. If any of those options are omitted, the interactive
+  wizard runs even with `--yes --no-enter`. It fails if the name is taken; the
   name reservation is atomic, so concurrent creates cannot corrupt each other.
 - `exec NAME -- COMMAND [ARG...]`:
   - requires no TTY;
@@ -37,14 +40,16 @@ sandbox delete task-42 --yes
   `--keep-home` retains the home and prints its path.
 - `list --json` emits objects with stable keys: `name`, `distro`,
   `persistence`, `home`, `status`. `status` is one of `running`, `stopped`,
-  `missing` (`missing` means stale metadata: the container is gone).
+  `missing`, or `unknown`. `missing` means stale metadata: the container is
+  gone. `unknown` means a tracked container has a blank runtime state and must
+  be treated as not usable.
 - The container runtime is the source of truth for liveness; metadata is
   descriptive. Never parse `list` output assuming metadata implies a live
   container.
 - Sandbox names match `[a-z0-9_-]+`.
 - Isolation: only the managed home is mounted; the host filesystem, `$HOME`
   and Podman internals of the host are never exposed inside the sandbox.
-- `NO_COLOR=1` (or a non-TTY stdout) disables color output.
+- `NO_COLOR=1` disables color output.
 
 ## Exit codes
 
@@ -72,4 +77,4 @@ describes the contract; if code and this document disagree, it is a bug.
 Tracked on GitHub (#16, #17, #18): `info --json` (machine-readable sandbox details),
 `doctor --json` (host readiness verdict), and idempotent lifecycle flags
 (`create --if-not-exists`, `delete --if-exists`) to remove check-then-act
-round-trips from agent loops.
+round-trips from agent loops. TTY-based color auto-detection is also planned.
