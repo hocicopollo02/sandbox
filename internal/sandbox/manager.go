@@ -60,7 +60,7 @@ func (m *Manager) Create(ctx context.Context, options CreateOptions) (bool, erro
 			if statusErr != nil || status != Missing {
 				return false, nil
 			}
-			return false, fmt.Errorf("sandbox %q is held by stale metadata; run 'sandbox delete %s --if-exists --yes' to clean it up", name, name)
+			return false, fmt.Errorf("sandbox %q is held by incomplete metadata; run 'sandbox delete %s --if-exists --yes' and retry", name, name)
 		} else {
 			return false, fmt.Errorf("sandbox %q already exists", name)
 		}
@@ -102,7 +102,14 @@ func (m *Manager) Create(ctx context.Context, options CreateOptions) (bool, erro
 	}
 	if err := m.Store.SaveExclusive(record); err != nil {
 		if options.IfNotExists && errors.Is(err, os.ErrExist) {
-			return false, nil
+			if _, lookupErr := m.Store.Get(name); lookupErr != nil {
+				return false, err
+			}
+			status, statusErr := m.Inspector.Status(ctx, name)
+			if statusErr != nil || status != Missing {
+				return false, nil
+			}
+			return false, fmt.Errorf("sandbox %q is held by incomplete metadata; run 'sandbox delete %s --if-exists --yes' and retry", name, name)
 		}
 		return false, err
 	}
@@ -314,7 +321,10 @@ func (m *Manager) Delete(ctx context.Context, name string, options DeleteOptions
 		if err != nil {
 			return fmt.Errorf("resolve managed isolated home: %w", err)
 		}
-		actual, err := filepath.Abs(filepath.Clean(record.HomePath))
+		actual := expected
+		if record.HomePath != "" {
+			actual, err = filepath.Abs(filepath.Clean(record.HomePath))
+		}
 		if err != nil || actual != expected {
 			return fmt.Errorf("refusing to delete isolated home outside managed directory")
 		}

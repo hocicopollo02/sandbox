@@ -88,6 +88,24 @@ func TestCreateStaleReservationWithIfNotExistsFailsActionably(t *testing.T) {
 	}
 }
 
+func TestCreateReservationCollisionWithIfNotExistsRechecksRuntime(t *testing.T) {
+	container := &fakeContainer{}
+	manager, store := newTestManager(t, container)
+	distro, _ := FindDistribution("arch")
+	record := Record{Name: "raced", Distribution: distro.ID, Image: distro.Image, Persistence: Persistent, HomeMode: IsolatedHome}
+	manager.Inspector = &racingInspector{during: func() {
+		if err := store.SaveExclusive(record); err != nil {
+			t.Errorf("reservation failed: %v", err)
+		}
+	}}
+	_, err := manager.Create(context.Background(), CreateOptions{
+		Name: "raced", Distribution: distro, Persistence: Persistent, HomeMode: IsolatedHome, IfNotExists: true,
+	})
+	if err == nil || !strings.Contains(err.Error(), "sandbox delete raced --if-exists --yes") {
+		t.Fatalf("reservation collision error = %v, want actionable cleanup guidance", err)
+	}
+}
+
 func TestCreateExistingWithIfNotExistsIgnoresRuntimeUnavailable(t *testing.T) {
 	container := &unavailableContainer{err: fmt.Errorf("container runtime unavailable")}
 	manager, store := newTestManager(t, &container.fakeContainer)
@@ -138,5 +156,25 @@ func TestDeleteMissingWithIfExistsStillRemovesHomeWhenMetadataExists(t *testing.
 	}
 	if _, err := os.Stat(store.Home("ghost")); !os.IsNotExist(err) {
 		t.Fatalf("home not removed: %v", err)
+	}
+}
+
+func TestDeleteIfExistsRemovesReservationHome(t *testing.T) {
+	manager, store := newTestManager(t, &fakeContainer{})
+	distro, _ := FindDistribution("arch")
+	if err := store.Save(Record{Name: "reserved", Distribution: distro.ID, Image: distro.Image, Persistence: Persistent, HomeMode: IsolatedHome}); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.MkdirAll(store.Home("reserved"), 0700); err != nil {
+		t.Fatal(err)
+	}
+	if err := manager.Delete(context.Background(), "reserved", DeleteOptions{DeleteHome: true, IfExists: true}); err != nil {
+		t.Fatalf("Delete reservation = %v, want nil", err)
+	}
+	if _, err := store.Get("reserved"); !errors.Is(err, metadata.ErrNotFound) {
+		t.Fatalf("reservation metadata = %v, want removed", err)
+	}
+	if _, err := os.Stat(store.Home("reserved")); !os.IsNotExist(err) {
+		t.Fatalf("reservation home = %v, want removed", err)
 	}
 }
