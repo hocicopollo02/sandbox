@@ -8,6 +8,7 @@ import (
 	"os/user"
 	"strconv"
 
+	"github.com/hocicopollo02/sandbox/internal/execx"
 	"github.com/hocicopollo02/sandbox/internal/podman"
 	"github.com/hocicopollo02/sandbox/internal/sandbox"
 	"github.com/spf13/cobra"
@@ -65,10 +66,8 @@ func runDoctor(appState *app, asJSON bool) error {
 			_, _ = fmt.Fprintln(appState.out, "\nSome checks failed. Fix them and run sandbox doctor again.")
 		}
 	}
-	// Exit non-zero without printing an error: main.go prints returned errors to
-	// stderr, and the failing checks are already rendered above.
 	if !allGood {
-		os.Exit(1)
+		return &execx.ExitError{Code: 1}
 	}
 	return nil
 }
