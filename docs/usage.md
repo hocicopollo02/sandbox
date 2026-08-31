@@ -45,7 +45,7 @@ sandbox enter [NAME]
 sandbox exec NAME -- COMMAND [ARG...]
 sandbox stop NAME
 sandbox delete NAME [--yes] [--keep-home]
-sandbox info NAME
+sandbox info NAME [--json]
 sandbox doctor
 sandbox version
 ```
@@ -90,9 +90,8 @@ Muestra los metadatos del sandbox y su estado en el runtime:
 sandbox info gentle-ai
 ```
 
-Con `--json` la salida es máquina-legible con claves estables (`name`,
-`distribution`, `image`, `persistence`, `home_mode`, `home_path`, `created_at`
-y `status`), pensada para agentes y scripts:
+Con `--json` la salida es máquina-legible, pensada para agentes y scripts. El
+contrato de claves estables está documentado en la [interfaz para agentes](agents.md):
 
 ```bash
 sandbox info gentle-ai --json
