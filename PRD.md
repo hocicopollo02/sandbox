@@ -197,10 +197,8 @@ sandbox enter
 sandbox exec NAME -- COMMAND [ARG...]
 sandbox stop
 sandbox delete
-sandbox info
-sandbox doctor [--json]
 sandbox info [--json]
-sandbox doctor
+sandbox doctor [--json]
 sandbox version
 ```
 
