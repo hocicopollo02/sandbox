@@ -74,7 +74,7 @@ func NewRootCommand(home string, in io.Reader, out, errOut io.Writer) (*cobra.Co
 	root.PersistentFlags().BoolVar(&appState.verbose, "verbose", false, "show external command details")
 	root.PersistentFlags().StringVar(&ErrorFormat, "error-format", "text", "error output format: text or json")
 	root.PersistentPreRunE = func(cmd *cobra.Command, args []string) error {
-		runner.Verbose = appState.verbose
+		runner.Verbose = appState.verbose && ErrorFormat != "json"
 		if os.Geteuid() == 0 && cmd.Name() != "doctor" && cmd.Name() != "version" {
 			return fmt.Errorf("sandbox must run as a normal user; do not use sudo sandbox or sudo podman")
 		}

@@ -106,7 +106,7 @@ sandbox --error-format json exec missing -- echo hi
 ```
 
 ```json
-{"error":{"code":"E_NOT_FOUND","message":"sandbox \"missing\" does not exist: resource not found"}}
+{"error":{"code":"E_NOT_FOUND","message":"sandbox \"missing\" does not exist"}}
 ```
 
 | Code | Meaning |
@@ -119,4 +119,5 @@ sandbox --error-format json exec missing -- echo hi
 
 With `--error-format json` the human message is not printed; exit code remains
 `1` for operational errors. `exec` still propagates the executed process's own
-exit code and never wraps it in JSON.
+exit code and never wraps it in JSON. Verbose command diagnostics are suppressed
+in JSON mode so stderr contains exactly one JSON object.

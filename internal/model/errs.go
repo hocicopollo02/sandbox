@@ -2,6 +2,19 @@ package model
 
 import "errors"
 
+type codedError struct {
+	message  string
+	sentinel error
+}
+
+func (e codedError) Error() string { return e.message }
+
+func (e codedError) Unwrap() error { return e.sentinel }
+
+func CodedError(message string, sentinel error) error {
+	return codedError{message: message, sentinel: sentinel}
+}
+
 // Machine-readable error sentinels for agent integrations. Errors from the
 // manager, metadata store and Podman client wrap one of these so that
 // ErrorCode can classify failures without text matching.

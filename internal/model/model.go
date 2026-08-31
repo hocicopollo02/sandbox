@@ -61,10 +61,10 @@ var validName = regexp.MustCompile(`^[a-z0-9_-]+$`)
 func ValidateName(name string) (string, error) {
 	name = strings.TrimSpace(name)
 	if name == "" {
-		return "", fmt.Errorf("sandbox name is required")
+		return "", CodedError("sandbox name is required", ErrInvalidName)
 	}
 	if !validName.MatchString(name) {
-		return "", fmt.Errorf("invalid sandbox name %q: use lowercase letters, numbers, _ or -: %w", name, ErrInvalidName)
+		return "", CodedError(fmt.Sprintf("invalid sandbox name %q: use lowercase letters, numbers, _ or -", name), ErrInvalidName)
 	}
 	return name, nil
 }
