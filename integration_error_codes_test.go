@@ -3,8 +3,10 @@
 package main_test
 
 import (
+	"bytes"
+	"encoding/json"
+	"io"
 	"os/exec"
-	"strings"
 	"testing"
 )
 
@@ -18,9 +20,12 @@ func TestE2EErrorCodesMachineJSON(t *testing.T) {
 	cmd := exec.Command(bin, "--error-format", "json", "exec", name, "--", "echo", "hi")
 	cmd.Env = setEnv(env, "NO_COLOR", "1")
 	cmd.Env = setEnv(cmd.Env, "TERM", "dumb")
-	output, err := cmd.CombinedOutput()
+	var stdout, stderr bytes.Buffer
+	cmd.Stdout = &stdout
+	cmd.Stderr = &stderr
+	err := cmd.Run()
 	if err == nil {
-		t.Fatalf("exec on missing sandbox unexpectedly succeeded:\n%s", output)
+		t.Fatalf("exec on missing sandbox unexpectedly succeeded:\n%s", stderr.String())
 	}
 	exitErr, ok := err.(*exec.ExitError)
 	if !ok {
@@ -29,10 +34,22 @@ func TestE2EErrorCodesMachineJSON(t *testing.T) {
 	if exitErr.ExitCode() != 1 {
 		t.Errorf("exit code = %d, want 1", exitErr.ExitCode())
 	}
-	if !strings.Contains(string(output), `"code":"E_NOT_FOUND"`) {
-		t.Errorf("output does not contain E_NOT_FOUND code:\n%s", output)
+	var payload struct {
+		Error struct {
+			Code string `json:"code"`
+		} `json:"error"`
 	}
-	if !strings.Contains(string(output), `"error"`) {
-		t.Errorf("output does not contain machine error object:\n%s", output)
+	decoder := json.NewDecoder(&stderr)
+	if err := decoder.Decode(&payload); err != nil {
+		t.Fatalf("stderr is not one JSON error object: %v", err)
+	}
+	if err := decoder.Decode(&struct{}{}); err != io.EOF {
+		t.Errorf("stderr contains more than one JSON document: %v", err)
+	}
+	if payload.Error.Code != "E_NOT_FOUND" {
+		t.Errorf("error code = %q, want E_NOT_FOUND", payload.Error.Code)
+	}
+	if stdout.Len() != 0 {
+		t.Errorf("stdout is not empty: %s", stdout.String())
 	}
 }
