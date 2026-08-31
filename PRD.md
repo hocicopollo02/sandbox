@@ -198,7 +198,7 @@ sandbox exec NAME -- COMMAND [ARG...]
 sandbox stop
 sandbox delete
 sandbox info
-sandbox doctor
+sandbox doctor [--json]
 sandbox version
 ```
 
@@ -699,7 +699,7 @@ Debe diagnosticar el entorno.
 Uso:
 
 ```bash
-sandbox doctor
+sandbox doctor [--json]
 ```
 
 Ejemplo:
@@ -708,9 +708,9 @@ Ejemplo:
 Sandbox Doctor
 
 ✓ Podman installed
+✓ Podman runtime working
 ✓ Podman rootless
 ✓ User namespaces configured
-✓ Container runtime working
 
 Everything looks good.
 ```

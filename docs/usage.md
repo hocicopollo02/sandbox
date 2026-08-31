@@ -46,7 +46,7 @@ sandbox exec NAME -- COMMAND [ARG...]
 sandbox stop NAME
 sandbox delete NAME [--yes] [--keep-home]
 sandbox info NAME
-sandbox doctor
+sandbox doctor [--json]
 sandbox version
 ```
 
