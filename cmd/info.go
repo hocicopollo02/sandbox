@@ -1,6 +1,7 @@
 package cmd
 
 import (
+	"encoding/json"
 	"fmt"
 	"path/filepath"
 	"time"
@@ -10,7 +11,8 @@ import (
 )
 
 func newInfoCommand(appState *app) *cobra.Command {
-	return &cobra.Command{
+	var asJSON bool
+	cmd := &cobra.Command{
 		Use:   "info NAME",
 		Short: "Show sandbox metadata and runtime status",
 		Args: func(cmd *cobra.Command, args []string) error {
@@ -22,6 +24,14 @@ func newInfoCommand(appState *app) *cobra.Command {
 		RunE: func(cmd *cobra.Command, args []string) error {
 			info, err := appState.manager.Info(cmd.Context(), args[0])
 			if err != nil {
+				return err
+			}
+			if asJSON {
+				data, err := json.MarshalIndent(info, "", "  ")
+				if err != nil {
+					return err
+				}
+				_, err = fmt.Fprintln(appState.out, string(data))
 				return err
 			}
 			created := info.CreatedAt.Local().Format(time.RFC3339)
@@ -37,4 +47,6 @@ func newInfoCommand(appState *app) *cobra.Command {
 			return err
 		},
 	}
+	cmd.Flags().BoolVar(&asJSON, "json", false, "print JSON")
+	return cmd
 }

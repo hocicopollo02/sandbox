@@ -82,6 +82,37 @@ sandbox delete review-123 --yes
 Fuera de alcance inicial: `--env`, `--workdir`, mounts adicionales, publicación
 de puertos y un comando compuesto tipo `sandbox run`.
 
+## `info`
+
+Muestra los metadatos del sandbox y su estado en el runtime:
+
+```bash
+sandbox info gentle-ai
+```
+
+Con `--json` la salida es máquina-legible con claves estables (`name`,
+`distribution`, `image`, `persistence`, `home_mode`, `home_path`, `created_at`
+y `status`), pensada para agentes y scripts:
+
+```bash
+sandbox info gentle-ai --json
+```
+
+```json
+{
+  "name": "gentle-ai",
+  "distribution": "arch",
+  "image": "docker.io/library/archlinux:latest",
+  "persistence": "persistent",
+  "home_mode": "isolated",
+  "home_path": "/home/user/.local/share/sandbox/homes/gentle-ai",
+  "created_at": "2026-08-30T12:00:00.000Z",
+  "status": "running"
+}
+```
+
+El valor de `status` es uno de `running`, `stopped`, `missing` o `unknown`.
+
 ## `create`
 
 ```text
