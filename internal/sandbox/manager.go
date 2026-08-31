@@ -62,7 +62,12 @@ func (m *Manager) Create(ctx context.Context, options CreateOptions) (bool, erro
 			if statusErr != nil || status != Missing {
 				return false, nil
 			}
-			removed, err := m.Store.DeleteIfMatch(existing)
+			removed, err := m.Store.DeleteIfMatch(existing, func() error {
+				if existing.HomeMode == IsolatedHome {
+					return m.Store.RemoveHome(name)
+				}
+				return nil
+			})
 			if err != nil {
 				return false, err
 			}

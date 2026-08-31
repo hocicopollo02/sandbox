@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"os"
+	"path/filepath"
 	"testing"
 	"time"
 
@@ -77,6 +78,13 @@ func TestCreateStaleReservationWithIfNotExistsIsRecreated(t *testing.T) {
 	if err := store.SaveExclusive(record); err != nil {
 		t.Fatal(err)
 	}
+	if err := os.MkdirAll(store.Home("raced"), 0700); err != nil {
+		t.Fatal(err)
+	}
+	marker := filepath.Join(store.Home("raced"), "orphan")
+	if err := os.WriteFile(marker, []byte("stale"), 0600); err != nil {
+		t.Fatal(err)
+	}
 	manager.Inspector = &fakeInspector{}
 	_, err := manager.Create(context.Background(), CreateOptions{
 		Name: "raced", Distribution: distro, Persistence: Persistent, HomeMode: IsolatedHome, IfNotExists: true,
@@ -89,6 +97,9 @@ func TestCreateStaleReservationWithIfNotExistsIsRecreated(t *testing.T) {
 	}
 	if _, err := store.Get("raced"); err != nil {
 		t.Fatalf("recreated metadata missing: %v", err)
+	}
+	if _, err := os.Stat(marker); !os.IsNotExist(err) {
+		t.Fatalf("stale home contents remain: %v", err)
 	}
 }
 

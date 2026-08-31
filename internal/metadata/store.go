@@ -11,6 +11,7 @@ import (
 	"sync"
 
 	"github.com/hocicopollo02/sandbox/internal/model"
+	"golang.org/x/sys/unix"
 )
 
 var ErrNotFound = errors.New("sandbox metadata not found")
@@ -59,6 +60,11 @@ func (s *Store) Get(name string) (model.Record, error) {
 func (s *Store) Save(record model.Record) error {
 	s.mu.Lock()
 	defer s.mu.Unlock()
+	unlock, err := s.lock()
+	if err != nil {
+		return err
+	}
+	defer unlock()
 	return s.save(record)
 }
 
@@ -101,6 +107,11 @@ func (s *Store) save(record model.Record) error {
 func (s *Store) SaveExclusive(record model.Record) error {
 	s.mu.Lock()
 	defer s.mu.Unlock()
+	unlock, err := s.lock()
+	if err != nil {
+		return err
+	}
+	defer unlock()
 	return s.saveExclusive(record)
 }
 
@@ -135,6 +146,11 @@ func (s *Store) saveExclusive(record model.Record) error {
 func (s *Store) Delete(name string) error {
 	s.mu.Lock()
 	defer s.mu.Unlock()
+	unlock, err := s.lock()
+	if err != nil {
+		return err
+	}
+	defer unlock()
 	return s.delete(name)
 }
 
@@ -145,9 +161,14 @@ func (s *Store) delete(name string) error {
 	return nil
 }
 
-func (s *Store) DeleteIfMatch(expected model.Record) (bool, error) {
+func (s *Store) DeleteIfMatch(expected model.Record, cleanup func() error) (bool, error) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
+	unlock, err := s.lock()
+	if err != nil {
+		return false, err
+	}
+	defer unlock()
 	record, err := s.Get(expected.Name)
 	if errors.Is(err, ErrNotFound) {
 		return false, nil
@@ -161,7 +182,30 @@ func (s *Store) DeleteIfMatch(expected model.Record) (bool, error) {
 	if err := s.delete(expected.Name); err != nil {
 		return false, err
 	}
+	if cleanup != nil {
+		if err := cleanup(); err != nil {
+			return false, err
+		}
+	}
 	return true, nil
+}
+
+func (s *Store) lock() (func(), error) {
+	if err := os.MkdirAll(s.Paths.Metadata, 0700); err != nil {
+		return nil, fmt.Errorf("create metadata directory: %w", err)
+	}
+	file, err := os.OpenFile(filepath.Join(s.Paths.Metadata, ".sandbox.lock"), os.O_CREATE|os.O_RDWR, 0600)
+	if err != nil {
+		return nil, fmt.Errorf("open metadata lock: %w", err)
+	}
+	if err := unix.Flock(int(file.Fd()), unix.LOCK_EX); err != nil {
+		_ = file.Close()
+		return nil, fmt.Errorf("lock metadata: %w", err)
+	}
+	return func() {
+		_ = unix.Flock(int(file.Fd()), unix.LOCK_UN)
+		_ = file.Close()
+	}, nil
 }
 
 func (s *Store) List() ([]model.Record, error) {
