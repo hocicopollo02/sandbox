@@ -199,6 +199,8 @@ sandbox stop
 sandbox delete
 sandbox info
 sandbox doctor [--json]
+sandbox info [--json]
+sandbox doctor
 sandbox version
 ```
 
@@ -611,6 +613,9 @@ Uso:
 ```bash
 sandbox info gentle-ai
 ```
+
+También admite `--json` para automatización. Sus claves estables y los valores
+posibles de `status` forman parte del contrato de la [interfaz para agentes](docs/agents.md).
 
 Salida:
 

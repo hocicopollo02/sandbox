@@ -50,6 +50,10 @@ sandbox delete task-42 --yes
   runtime operation, rootless mode, and user namespaces. `detail` is omitted
   when a check succeeds. The command writes only JSON to stdout and exits 1
   when `ok` is false.
+- `info NAME --json` emits a single object with stable keys: `name`,
+  `distribution`, `image`, `persistence`, `home_mode`, `home_path`,
+  `created_at`, and `status`. `status` uses the same values and meanings as
+  `list --json`.
 - The container runtime is the source of truth for liveness; metadata is
   descriptive. Never parse `list` output assuming metadata implies a live
   container.

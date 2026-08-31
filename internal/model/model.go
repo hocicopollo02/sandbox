@@ -89,7 +89,7 @@ type ListEntry struct {
 
 type Info struct {
 	Record
-	Status Status
+	Status Status `json:"status"`
 }
 
 type CreateOptions struct {
