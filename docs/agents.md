@@ -19,7 +19,7 @@ sandbox exec task-42 -- bash -lc 'cd repo && make test'
 
 sandbox list --json
 sandbox doctor --json
-sandbox delete task-42 --yes
+sandbox delete task-42 --yes --if-exists
 ```
 
 ## Guarantees
@@ -28,8 +28,11 @@ sandbox delete task-42 --yes
   `--persistent`/`--disposable`, and `--isolated-home` are supplied explicitly.
   If any of those options are omitted, the interactive wizard runs even with
   `--yes --no-enter`. `--shared-home` is rejected immediately with an error,
-  before any prompt. It fails if the name is taken; the name reservation is
-  atomic, so concurrent creates cannot corrupt each other.
+  before any prompt. It fails if the name is taken, unless
+  `--if-not-exists` is supplied; then an existing sandbox is a successful
+  no-op. An incomplete metadata reservation remains an error with cleanup
+  guidance. The name reservation is atomic, so concurrent creates cannot
+  corrupt each other.
 - `exec NAME -- COMMAND [ARG...]`:
   - requires no TTY;
   - passes arguments to the process without shell reinterpretation;
@@ -39,7 +42,8 @@ sandbox delete task-42 --yes
   - fails for unknown sandboxes without creating anything.
 - `stop` on an already-stopped sandbox succeeds (idempotent).
 - `delete --yes` removes container, metadata and managed home unconditionally.
-  `--keep-home` retains the home and prints its path.
+  `--keep-home` retains the home and prints its path. `--if-exists` makes a
+  missing sandbox a successful no-op; when metadata exists, cleanup still runs.
 - `list --json` emits objects with stable keys: `name`, `distro`,
   `persistence`, `home`, `status`. `status` is one of `running`, `stopped`,
   `missing`, or `unknown`. `missing` means stale metadata: the container is
@@ -54,11 +58,6 @@ sandbox delete task-42 --yes
   `distribution`, `image`, `persistence`, `home_mode`, `home_path`,
   `created_at`, and `status`. `status` uses the same values and meanings as
   `list --json`.
-- `doctor --json` emits one object with `ok` and `checks` keys. `checks` is an
-  ordered array of `{name, ok, detail}` results for Podman installation,
-  runtime operation, rootless mode, and user namespaces. `detail` is omitted
-  when a check succeeds. The command writes only JSON to stdout and exits 1
-  when `ok` is false.
 - The container runtime is the source of truth for liveness; metadata is
   descriptive. Never parse `list` output assuming metadata implies a live
   container.

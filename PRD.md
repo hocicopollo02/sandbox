@@ -236,7 +236,8 @@ Reglas:
 - obligatorio;
 - lowercase preferiblemente;
 - permitir `a-z`, `0-9`, `_` y `-`;
-- rechazar nombres ya existentes;
+- rechazar nombres ya existentes, salvo con `--if-not-exists`, que convierte
+  la creación repetida en un no-op exitoso;
 - eliminar espacios exteriores;
 - mostrar error claro si el nombre es inválido.
 
@@ -1482,5 +1483,4 @@ Roadmap de ergonomía (pendiente de implementar):
 |------|--------------------------|
 | `info --json` | Detalles de un sandbox sin parsear texto |
 | `doctor --json` | Veredicto de preparación del host en un round-trip |
-| `create --if-not-exists` / `delete --if-exists` | Elimina el patrón check-then-act del loop del agente |
 | Códigos de error máquina (`E_EXISTS`, `E_NOT_FOUND`) | Distinguir clases de error sin matching de texto |
