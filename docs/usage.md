@@ -45,7 +45,7 @@ sandbox enter [NAME]
 sandbox exec NAME -- COMMAND [ARG...]
 sandbox stop NAME
 sandbox delete NAME [--yes] [--keep-home]
-sandbox info NAME
+sandbox info NAME [--json]
 sandbox doctor
 sandbox version
 ```
@@ -81,6 +81,36 @@ sandbox delete review-123 --yes
 
 Fuera de alcance inicial: `--env`, `--workdir`, mounts adicionales, publicación
 de puertos y un comando compuesto tipo `sandbox run`.
+
+## `info`
+
+Muestra los metadatos del sandbox y su estado en el runtime:
+
+```bash
+sandbox info gentle-ai
+```
+
+Con `--json` la salida es máquina-legible, pensada para agentes y scripts. El
+contrato de claves estables está documentado en la [interfaz para agentes](agents.md):
+
+```bash
+sandbox info gentle-ai --json
+```
+
+```json
+{
+  "name": "gentle-ai",
+  "distribution": "arch",
+  "image": "docker.io/library/archlinux:latest",
+  "persistence": "persistent",
+  "home_mode": "isolated",
+  "home_path": "/home/user/.local/share/sandbox/homes/gentle-ai",
+  "created_at": "2026-08-30T12:00:00.000Z",
+  "status": "running"
+}
+```
+
+El valor de `status` es uno de `running`, `stopped`, `missing` o `unknown`.
 
 ## `create`
 
