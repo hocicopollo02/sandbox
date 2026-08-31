@@ -17,7 +17,7 @@ La CLI nunca ejecuta `sudo podman`.
 ## Desde una release de GitHub
 
 El repositorio es público. No necesitas configurar autenticación de Git para
-instalarlo (v1.1.0 es la release actual):
+instalarlo (v1.2.0 es la release actual):
 
 ```bash
 go install github.com/hocicopollo02/sandbox@latest
@@ -40,7 +40,7 @@ sandbox doctor
 Para instalar una versión concreta, usa su tag:
 
 ```bash
-go install github.com/hocicopollo02/sandbox@v1.1.0
+go install github.com/hocicopollo02/sandbox@v1.2.0
 ```
 
 ## Desde el código fuente
