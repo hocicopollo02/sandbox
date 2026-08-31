@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"os"
 	"testing"
+	"time"
 
 	"github.com/hocicopollo02/sandbox/internal/metadata"
 )
@@ -88,6 +89,38 @@ func TestCreateStaleReservationWithIfNotExistsIsRecreated(t *testing.T) {
 	}
 	if _, err := store.Get("raced"); err != nil {
 		t.Fatalf("recreated metadata missing: %v", err)
+	}
+}
+
+func TestCreateStaleReservationDoesNotDeleteNewReservation(t *testing.T) {
+	container := &fakeContainer{}
+	manager, store := newTestManager(t, container)
+	distro, _ := FindDistribution("arch")
+	old := Record{Name: "raced", Distribution: distro.ID, Image: distro.Image, Persistence: Persistent, HomeMode: IsolatedHome}
+	if err := store.SaveExclusive(old); err != nil {
+		t.Fatal(err)
+	}
+	newRecord := old
+	newRecord.CreatedAt = time.Now().Add(time.Second)
+	manager.Inspector = &racingInspector{during: func() {
+		if err := store.Delete(old.Name); err != nil {
+			t.Errorf("old reservation removal failed: %v", err)
+		}
+		if err := store.SaveExclusive(newRecord); err != nil {
+			t.Errorf("new reservation failed: %v", err)
+		}
+	}}
+	_, err := manager.Create(context.Background(), CreateOptions{
+		Name: old.Name, Distribution: distro, Persistence: Persistent, HomeMode: IsolatedHome, IfNotExists: true,
+	})
+	if err != nil {
+		t.Fatalf("stale reservation race = %v, want nil", err)
+	}
+	if len(container.created) != 0 {
+		t.Fatalf("created containers = %v, want none", container.created)
+	}
+	if record, err := store.Get(old.Name); err != nil || !record.CreatedAt.Equal(newRecord.CreatedAt) {
+		t.Fatalf("reservation after race = %#v, %v; want new reservation", record, err)
 	}
 }
 
