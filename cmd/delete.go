@@ -9,7 +9,7 @@ import (
 )
 
 func newDeleteCommand(appState *app) *cobra.Command {
-	var yes, keepHome bool
+	var yes, keepHome, ifExists bool
 	cmd := &cobra.Command{
 		Use:     "delete NAME",
 		Aliases: []string{"rm"},
@@ -23,6 +23,10 @@ func newDeleteCommand(appState *app) *cobra.Command {
 		RunE: func(cmd *cobra.Command, args []string) error {
 			info, err := appState.manager.Lookup(cmd.Context(), args[0])
 			if err != nil {
+				if ifExists {
+					_, _ = fmt.Fprintf(appState.out, "Sandbox %s does not exist; nothing to do\n", args[0])
+					return nil
+				}
 				return err
 			}
 			if !yes {
@@ -41,7 +45,7 @@ func newDeleteCommand(appState *app) *cobra.Command {
 					return err
 				}
 			}
-			if err := appState.manager.Delete(cmd.Context(), info.Name, sandbox.DeleteOptions{DeleteHome: deleteHome}); err != nil {
+			if err := appState.manager.Delete(cmd.Context(), info.Name, sandbox.DeleteOptions{DeleteHome: deleteHome, IfExists: ifExists}); err != nil {
 				return err
 			}
 			appState.ui.Success("Sandbox deleted")
@@ -55,5 +59,6 @@ func newDeleteCommand(appState *app) *cobra.Command {
 	}
 	cmd.Flags().BoolVarP(&yes, "yes", "y", false, "skip confirmations")
 	cmd.Flags().BoolVar(&keepHome, "keep-home", false, "keep an isolated home")
+	cmd.Flags().BoolVar(&ifExists, "if-exists", false, "succeed as a no-op when the sandbox does not exist")
 	return cmd
 }

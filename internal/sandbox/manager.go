@@ -58,6 +58,9 @@ func (m *Manager) Create(ctx context.Context, options CreateOptions) (bool, erro
 		return false, err
 	}
 	if _, err := m.Store.Get(name); err == nil {
+		if options.IfNotExists {
+			return false, nil
+		}
 		return false, fmt.Errorf("sandbox %q already exists", name)
 	} else if !errors.Is(err, metadata.ErrNotFound) {
 		return false, err
@@ -93,6 +96,9 @@ func (m *Manager) Create(ctx context.Context, options CreateOptions) (bool, erro
 		CreatedAt:    time.Now().In(time.Local),
 	}
 	if err := m.Store.SaveExclusive(record); err != nil {
+		if options.IfNotExists {
+			return false, nil
+		}
 		return false, err
 	}
 	discardReservation := func() error { return m.Store.Delete(name) }
@@ -290,6 +296,9 @@ func (m *Manager) Delete(ctx context.Context, name string, options DeleteOptions
 	}
 	record, err := m.Store.Get(name)
 	if errors.Is(err, metadata.ErrNotFound) {
+		if options.IfExists {
+			return nil
+		}
 		return fmt.Errorf("sandbox %q does not exist", name)
 	}
 	if err != nil {

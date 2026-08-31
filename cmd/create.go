@@ -12,7 +12,7 @@ func newCreateCommand(appState *app) *cobra.Command {
 	var distro string
 	var persistent, disposable bool
 	var isolatedHome, sharedHome bool
-	var noEnter, yes bool
+	var noEnter, yes, ifNotExists bool
 
 	cmd := &cobra.Command{
 		Use:   "create [name]",
@@ -99,6 +99,7 @@ func newCreateCommand(appState *app) *cobra.Command {
 				Persistence:  persistence,
 				HomeMode:     homeMode,
 				AutoEnter:    !noEnter,
+				IfNotExists:  ifNotExists,
 			})
 			if err != nil {
 				return err
@@ -118,5 +119,6 @@ func newCreateCommand(appState *app) *cobra.Command {
 	cmd.Flags().BoolVar(&sharedHome, "shared-home", false, "deprecated: shared host home is disabled")
 	cmd.Flags().BoolVar(&noEnter, "no-enter", false, "create without entering (persistent only)")
 	cmd.Flags().BoolVarP(&yes, "yes", "y", false, "skip confirmations")
+	cmd.Flags().BoolVar(&ifNotExists, "if-not-exists", false, "succeed as a no-op when the sandbox already exists")
 	return cmd
 }
