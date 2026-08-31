@@ -1473,8 +1473,10 @@ Los agentes sin TTY son usuarios de primera clase. El contrato máquina completo
 vive en `docs/agents.md` y las instrucciones para agentes que contribuyen al
 repositorio en `AGENTS.md`. Principios:
 
-1. **Cero prompts cuando se pide explícitamente**: `--yes --no-enter` nunca
-   interactúa.
+1. **Cero prompts cuando se pide explícitamente**: `create` es completamente
+   no interactivo solo cuando se proporcionan explícitamente `--distro`,
+   `--persistent`/`--disposable` y la opción de home. Si falta alguna de esas
+   opciones, se ejecuta el wizard interactivo incluso con `--yes --no-enter`.
 2. **Verdad en el runtime**: `list --json` y el estado reportado se contrastan
    siempre con Podman; la metadata es descriptiva.
 3. **Códigos de salida predecibles**: `exec` propaga el exit code del proceso;
