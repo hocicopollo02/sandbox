@@ -75,7 +75,4 @@ describes the contract; if code and this document disagree, it is a bug.
 
 ## Ergonomics roadmap
 
-Tracked on GitHub (#16, #17, #18): `info --json` (machine-readable sandbox details),
-`doctor --json` (host readiness verdict), and idempotent lifecycle flags
-(`create --if-not-exists`, `delete --if-exists`) to remove check-then-act
-round-trips from agent loops. TTY-based color auto-detection is also planned.
+See the agent ergonomics roadmap in [`PRD.md`](../PRD.md#49-interfaz-para-agentes).
