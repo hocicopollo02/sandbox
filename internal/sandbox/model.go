@@ -12,6 +12,19 @@ type Info = model.Info
 type CreateOptions = model.CreateOptions
 type DeleteOptions = model.DeleteOptions
 
+type StopResult string
+
+type CreateResult string
+
+const (
+	CreateResultCreated   CreateResult = "created"
+	CreateResultUnchanged CreateResult = "unchanged"
+	CreateResultRemoved   CreateResult = "removed"
+
+	StopResultStopped   StopResult = "stopped"
+	StopResultUnchanged StopResult = "unchanged"
+)
+
 const (
 	Disposable = model.Disposable
 	Persistent = model.Persistent

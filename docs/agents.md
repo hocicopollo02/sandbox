@@ -12,14 +12,16 @@ sandbox create task-42 \
   --persistent \
   --isolated-home \
   --no-enter \
-  --yes
+  --yes \
+  --json
 
 sandbox exec task-42 -- git clone https://github.com/org/repo.git
 sandbox exec task-42 -- bash -lc 'cd repo && make test'
 
 sandbox list --json
 sandbox doctor --json
-sandbox delete task-42 --yes --if-exists
+sandbox stop task-42 --json
+sandbox delete task-42 --yes --if-exists --json
 ```
 
 ## Guarantees
@@ -58,6 +60,24 @@ sandbox delete task-42 --yes --if-exists
   `distribution`, `image`, `persistence`, `home_mode`, `home_path`,
   `created_at`, and `status`. `status` uses the same values and meanings as
   `list --json`.
+- `create`, `stop`, and `delete` accept a command-local `--json` flag for
+  successful results. Each writes exactly one JSON object to stdout and skips
+  human status output. `create --json` requires `NAME`, `--distro`,
+  `--persistent`, `--isolated-home`, and `--no-enter`, so it never starts the
+  wizard or attaches a guest shell. `delete --json` requires `--yes`.
+
+  ```json
+  {"name":"task-42","result":"created"}
+  {"name":"task-42","result":"stopped"}
+  {"name":"task-42","result":"deleted","retained_home":null}
+  ```
+
+  `create.result` is `created` or `unchanged`; `stop.result` is `stopped` or
+  `unchanged`; `delete.result` is `deleted` or `unchanged`. The idempotent flags
+  report `unchanged` on a no-op. `delete` always includes `retained_home`; it is
+  `null` unless `--keep-home` retained an isolated home, in which case it is
+  the absolute managed path. The global `--error-format json` remains the
+  separate stderr contract for failures.
 - The container runtime is the source of truth for liveness; metadata is
   descriptive. Never parse `list` output assuming metadata implies a live
   container.
