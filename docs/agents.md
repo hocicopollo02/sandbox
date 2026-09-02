@@ -65,10 +65,10 @@ sandbox delete task-42 --yes --if-exists --json
   human status output. `create --json` requires `NAME`, `--distro`,
   `--persistent`, `--isolated-home`, and `--no-enter`, so it never starts the
   wizard or attaches a guest shell. `delete --json` requires `--yes`.
-- `upgrade` resolves the latest stable module version with Go and replaces the
-  running binary in its current directory by setting `GOBIN` for the install.
-  It requires Go 1.24+ and network access. With
-  `--json`, it emits exactly one object with `name`, `current_version`,
+- `upgrade` resolves the latest stable module version with Go and installs it
+  only when newer. It requires Go 1.24+, network access, and the running
+  executable to be in Go's configured `GOBIN` or `GOPATH/bin`. With `--json`,
+  it emits exactly one object with `name`, `current_version`,
   `latest_version`, and `result`, where `result` is `upgraded` or `unchanged`.
 
   ```json
