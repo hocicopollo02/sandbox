@@ -66,9 +66,9 @@ como módulo de Go:
 sandbox upgrade
 ```
 
-El comando necesita Go 1.24+, conexión a Internet y que el binario actual esté
-en el directorio de instalación de Go (`GOBIN` o `GOPATH/bin`). Si ya está en
-la última versión, no reinstala nada:
+El comando necesita Go 1.24+ y conexión a Internet. Cuando hay una actualización,
+instala el reemplazo en el directorio del binario actual mediante `GOBIN`. Si ya
+está en la última versión, no reinstala nada:
 
 ```text
 sandbox is already up to date (1.2.0)
@@ -81,8 +81,8 @@ Con `--json` devuelve un único objeto, pensado para agentes:
 {"name":"sandbox","current_version":"1.3.0","latest_version":"1.3.0","result":"unchanged"}
 ```
 
-Las instalaciones hechas desde código fuente en otra ruta deben actualizarse
-manualmente con `go install github.com/hocicopollo02/sandbox@latest`.
+Esto también permite actualizar instalaciones hechas desde código fuente en otra
+ruta, siempre que el proceso tenga permisos para escribir en ese directorio.
 
 ## `exec`
 

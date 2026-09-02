@@ -60,20 +60,19 @@ func runUpgrade(ctx context.Context, appState *app, asJSON bool) error {
 		return renderUpgradeResult(appState.out, result, asJSON)
 	}
 
-	installDir, err := goInstallDir(ctx, appState.runner)
-	if err != nil {
-		return err
-	}
 	executable, err := appExecutablePath(appState)
 	if err != nil {
 		return fmt.Errorf("could not locate the running sandbox executable: %w", err)
 	}
-	expected := filepath.Join(installDir, sandboxBinary)
-	if cleanPath(executable) != cleanPath(expected) {
-		return fmt.Errorf("sandbox is not installed in Go's binary directory %q; current executable is %q; set GOBIN to %q or run `go install %s@latest` manually", installDir, executable, filepath.Dir(executable), sandboxModule)
+	installDir := filepath.Dir(executable)
+	runner, ok := appState.runner.(interface {
+		RunWithEnv(context.Context, map[string]string, string, ...string) ([]byte, error)
+	})
+	if !ok {
+		return fmt.Errorf("could not upgrade sandbox: command runner does not support environment overrides")
 	}
 
-	output, err := appState.runner.Run(ctx, "go", "install", sandboxModule+"@"+latest.query)
+	output, err := runner.RunWithEnv(ctx, map[string]string{"GOBIN": installDir}, "go", "install", sandboxModule+"@"+latest.query)
 	if err != nil {
 		return upgradeCommandError("upgrade sandbox", output, err)
 	}
@@ -109,41 +108,11 @@ func parseModuleVersion(output []byte) (moduleVersion, error) {
 	return moduleVersion{display: display, query: query}, nil
 }
 
-func goInstallDir(ctx context.Context, runner execx.Runner) (string, error) {
-	output, err := runner.Run(ctx, "go", "env", "GOBIN", "GOPATH")
-	if err != nil {
-		return "", upgradeCommandError("determine Go's binary directory", output, err)
-	}
-	lines := strings.Split(strings.TrimRight(string(output), "\r\n"), "\n")
-	if len(lines) < 2 {
-		return "", fmt.Errorf("go returned an invalid GOBIN/GOPATH response %q", strings.TrimSpace(string(output)))
-	}
-	if gobin := strings.TrimSpace(lines[0]); gobin != "" {
-		return gobin, nil
-	}
-	for _, gopath := range strings.Split(strings.TrimSpace(lines[1]), string(os.PathListSeparator)) {
-		if gopath != "" {
-			return filepath.Join(gopath, "bin"), nil
-		}
-	}
-	return "", fmt.Errorf("go returned an empty GOBIN and GOPATH")
-}
-
 func appExecutablePath(appState *app) (string, error) {
 	if appState.executablePath != nil {
 		return appState.executablePath()
 	}
 	return os.Executable()
-}
-
-func cleanPath(path string) string {
-	if absolute, err := filepath.Abs(path); err == nil {
-		path = absolute
-	}
-	if resolved, err := filepath.EvalSymlinks(path); err == nil {
-		path = resolved
-	}
-	return filepath.Clean(path)
 }
 
 func displayVersion(version string) string {

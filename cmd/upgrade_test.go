@@ -4,14 +4,18 @@ import (
 	"bytes"
 	"context"
 	"errors"
-	"strings"
 	"testing"
 )
 
 type upgradeFakeRunner struct {
 	latest string
-	env    string
 	calls  [][]string
+	envs   []map[string]string
+}
+
+func (r *upgradeFakeRunner) RunWithEnv(ctx context.Context, env map[string]string, name string, args ...string) ([]byte, error) {
+	r.envs = append(r.envs, env)
+	return r.Run(ctx, name, args...)
 }
 
 func (r *upgradeFakeRunner) Run(_ context.Context, name string, args ...string) ([]byte, error) {
@@ -23,7 +27,7 @@ func (r *upgradeFakeRunner) Run(_ context.Context, name string, args ...string) 
 	case "list":
 		return []byte(r.latest + "\n"), nil
 	case "env":
-		return []byte(r.env), nil
+		return nil, nil
 	case "install":
 		return nil, nil
 	default:
@@ -69,7 +73,7 @@ func TestUpgradeJSONReportsUnchangedWithoutInstalling(t *testing.T) {
 }
 
 func TestUpgradeJSONInstallsResolvedLatestVersion(t *testing.T) {
-	runner := &upgradeFakeRunner{latest: "v1.3.0", env: "\n/home/user/go\n"}
+	runner := &upgradeFakeRunner{latest: "v1.3.0"}
 	appState, out := newUpgradeTestApp(runner)
 	cmd := newUpgradeCommand(appState)
 	cmd.SetArgs([]string{"--json"})
@@ -84,11 +88,13 @@ func TestUpgradeJSONInstallsResolvedLatestVersion(t *testing.T) {
 	}
 	wantCalls := [][]string{
 		{"go", "list", "-m", "-f", "{{.Version}}", "github.com/hocicopollo02/sandbox@latest"},
-		{"go", "env", "GOBIN", "GOPATH"},
 		{"go", "install", "github.com/hocicopollo02/sandbox@v1.3.0"},
 	}
 	if !sameUpgradeCalls(runner.calls, wantCalls) {
 		t.Fatalf("go calls = %#v, want %#v", runner.calls, wantCalls)
+	}
+	if len(runner.envs) != 1 || runner.envs[0]["GOBIN"] != "/home/user/go/bin" {
+		t.Fatalf("install environment = %#v, want GOBIN=/home/user/go/bin", runner.envs)
 	}
 }
 
@@ -109,8 +115,8 @@ func sameUpgradeCalls(got, want [][]string) bool {
 	return true
 }
 
-func TestUpgradeRejectsExecutableOutsideGoInstallDirectory(t *testing.T) {
-	runner := &upgradeFakeRunner{latest: "v1.3.0", env: "\n/home/user/go\n"}
+func TestUpgradeInstallsIntoExecutableDirectory(t *testing.T) {
+	runner := &upgradeFakeRunner{latest: "v1.3.0"}
 	appState, out := newUpgradeTestApp(runner)
 	appState.executablePath = func() (string, error) {
 		return "/usr/local/bin/sandbox", nil
@@ -118,17 +124,14 @@ func TestUpgradeRejectsExecutableOutsideGoInstallDirectory(t *testing.T) {
 	cmd := newUpgradeCommand(appState)
 	cmd.SetArgs([]string{"--json"})
 
-	err := cmd.Execute()
-	if err == nil || !strings.Contains(err.Error(), "not installed in Go's binary directory") {
-		t.Fatalf("error = %v, want actionable install-location error", err)
+	if err := cmd.Execute(); err != nil {
+		t.Fatal(err)
 	}
-	if out.Len() != 0 {
-		t.Fatalf("stdout = %q, want empty on failure", out.String())
+	if out.Len() == 0 {
+		t.Fatal("stdout is empty, want upgrade result")
 	}
-	for _, call := range runner.calls {
-		if len(call) > 1 && call[1] == "install" {
-			t.Fatal("upgrade installed a binary it could not replace")
-		}
+	if len(runner.envs) != 1 || runner.envs[0]["GOBIN"] != "/usr/local/bin" {
+		t.Fatalf("install environment = %#v, want GOBIN=/usr/local/bin", runner.envs)
 	}
 }
 
