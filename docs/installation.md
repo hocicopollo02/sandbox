@@ -37,6 +37,12 @@ sandbox version
 sandbox doctor
 ```
 
+Para actualizar una instalación gestionada por Go a la última versión estable:
+
+```bash
+sandbox upgrade
+```
+
 Para instalar una versión concreta, usa su tag:
 
 ```bash

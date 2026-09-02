@@ -65,6 +65,11 @@ sandbox delete task-42 --yes --if-exists --json
   human status output. `create --json` requires `NAME`, `--distro`,
   `--persistent`, `--isolated-home`, and `--no-enter`, so it never starts the
   wizard or attaches a guest shell. `delete --json` requires `--yes`.
+- `upgrade` resolves the latest stable module version with Go and only replaces
+  the running binary when it is installed in Go's own binary directory
+  (`GOBIN` or `GOPATH/bin`). It requires Go 1.24+ and network access. With
+  `--json`, it emits exactly one object with `name`, `current_version`,
+  `latest_version`, and `result`, where `result` is `upgraded` or `unchanged`.
 
   ```json
   {"name":"task-42","result":"created"}
@@ -113,9 +118,9 @@ See the agent ergonomics roadmap in [`PRD.md`](../PRD.md#49-interfaz-para-agente
 
 Implemented (see `PRD.md` section 49 and issues #19, #20, and #22): `info NAME --json`,
 `doctor --json` (exit 1 when the host is not ready), idempotent lifecycle flags
-`create --if-not-exists` / `delete --if-exists`, and success JSON for `create`,
-`stop`, and `delete`. A stale reservation is reported as an actionable error
-pointing at `delete --if-exists --yes`.
+`create --if-not-exists` / `delete --if-exists`, success JSON for `create`,
+`stop`, and `delete`, and `upgrade [--json]`. A stale reservation is reported
+as an actionable error pointing at `delete --if-exists --yes`.
 
 ## Machine error codes
 
