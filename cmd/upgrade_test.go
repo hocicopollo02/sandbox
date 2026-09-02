@@ -4,11 +4,14 @@ import (
 	"bytes"
 	"context"
 	"errors"
+	"strings"
 	"testing"
 )
 
 type upgradeFakeRunner struct {
 	latest string
+	gobin  string
+	gopath string
 	calls  [][]string
 	envs   []map[string]string
 }
@@ -27,7 +30,7 @@ func (r *upgradeFakeRunner) Run(_ context.Context, name string, args ...string) 
 	case "list":
 		return []byte(r.latest + "\n"), nil
 	case "env":
-		return nil, nil
+		return []byte(r.gobin + "\n" + r.gopath + "\n"), nil
 	case "install":
 		return nil, nil
 	default:
@@ -40,6 +43,8 @@ func (r *upgradeFakeRunner) Attach(context.Context, string, ...string) error    
 func (r *upgradeFakeRunner) LookPath(string) (string, error)                    { return "/usr/bin/go", nil }
 
 func newUpgradeTestApp(runner *upgradeFakeRunner) (*app, *bytes.Buffer) {
+	runner.gobin = "/home/user/go/bin"
+	runner.gopath = "/home/user/go"
 	out := &bytes.Buffer{}
 	return &app{
 		runner: runner,
@@ -88,6 +93,7 @@ func TestUpgradeJSONInstallsResolvedLatestVersion(t *testing.T) {
 	}
 	wantCalls := [][]string{
 		{"go", "list", "-m", "-f", "{{.Version}}", "github.com/hocicopollo02/sandbox@latest"},
+		{"go", "env", "GOBIN", "GOPATH"},
 		{"go", "install", "github.com/hocicopollo02/sandbox@v1.3.0"},
 	}
 	if !sameUpgradeCalls(runner.calls, wantCalls) {
@@ -115,23 +121,24 @@ func sameUpgradeCalls(got, want [][]string) bool {
 	return true
 }
 
-func TestUpgradeInstallsIntoExecutableDirectory(t *testing.T) {
+func TestUpgradeRejectsExecutableOutsideGoInstallDirectory(t *testing.T) {
 	runner := &upgradeFakeRunner{latest: "v1.3.0"}
-	appState, out := newUpgradeTestApp(runner)
+	appState, _ := newUpgradeTestApp(runner)
 	appState.executablePath = func() (string, error) {
 		return "/usr/local/bin/sandbox", nil
 	}
 	cmd := newUpgradeCommand(appState)
 	cmd.SetArgs([]string{"--json"})
 
-	if err := cmd.Execute(); err != nil {
-		t.Fatal(err)
+	err := cmd.Execute()
+	if err == nil {
+		t.Fatal("upgrade succeeded, want installation path error")
 	}
-	if out.Len() == 0 {
-		t.Fatal("stdout is empty, want upgrade result")
+	if !strings.Contains(err.Error(), "running executable is in /usr/local/bin") {
+		t.Fatalf("error = %q, want actionable installation path error", err)
 	}
-	if len(runner.envs) != 1 || runner.envs[0]["GOBIN"] != "/usr/local/bin" {
-		t.Fatalf("install environment = %#v, want GOBIN=/usr/local/bin", runner.envs)
+	if len(runner.envs) != 0 {
+		t.Fatalf("install environment = %#v, want no install", runner.envs)
 	}
 }
 

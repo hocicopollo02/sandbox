@@ -64,7 +64,10 @@ func runUpgrade(ctx context.Context, appState *app, asJSON bool) error {
 	if err != nil {
 		return fmt.Errorf("could not locate the running sandbox executable: %w", err)
 	}
-	installDir := filepath.Dir(executable)
+	installDir, err := resolveInstallDir(ctx, appState.runner, executable)
+	if err != nil {
+		return err
+	}
 	runner, ok := appState.runner.(interface {
 		RunWithEnv(context.Context, map[string]string, string, ...string) ([]byte, error)
 	})
@@ -78,6 +81,26 @@ func runUpgrade(ctx context.Context, appState *app, asJSON bool) error {
 	}
 	result.Result = "upgraded"
 	return renderUpgradeResult(appState.out, result, asJSON)
+}
+
+func resolveInstallDir(ctx context.Context, runner execx.Runner, executable string) (string, error) {
+	output, err := runner.Run(ctx, "go", "env", "GOBIN", "GOPATH")
+	if err != nil {
+		return "", upgradeCommandError("determine the sandbox installation directory", output, err)
+	}
+	paths := strings.Split(strings.TrimSpace(string(output)), "\n")
+	if len(paths) != 2 || strings.TrimSpace(paths[1]) == "" {
+		return "", fmt.Errorf("could not determine the sandbox installation directory: go returned invalid GOBIN/GOPATH")
+	}
+	installDir := strings.TrimSpace(paths[0])
+	if installDir == "" {
+		installDir = filepath.Join(strings.TrimSpace(paths[1]), "bin")
+	}
+	executableDir := filepath.Dir(executable)
+	if filepath.Clean(executableDir) != filepath.Clean(installDir) {
+		return "", fmt.Errorf("could not upgrade sandbox: running executable is in %s, but Go installs binaries in %s; move sandbox there or configure GOBIN", executableDir, installDir)
+	}
+	return installDir, nil
 }
 
 func resolveLatestVersion(ctx context.Context, runner execx.Runner) (moduleVersion, error) {
