@@ -43,8 +43,8 @@ sandbox create [NAME] [flags]
 sandbox list [--json]
 sandbox enter [NAME]
 sandbox exec NAME -- COMMAND [ARG...]
-sandbox stop NAME
-sandbox delete NAME [--yes] [--keep-home] [--if-exists]
+sandbox stop NAME [--json]
+sandbox delete NAME [--yes] [--keep-home] [--if-exists] [--json]
 sandbox info NAME [--json]
 sandbox doctor [--json]
 sandbox version
@@ -125,11 +125,25 @@ El valor de `status` es uno de `running`, `stopped`, `missing` o `unknown`.
 --no-enter
 --yes
 --if-not-exists
+--json
 --verbose
 ```
 
 `--shared-home` se conserva únicamente para devolver un error claro a scripts
 antiguos. El home del host nunca se monta.
+
+Para automatización, `create --json` exige nombre y las opciones explícitas
+`--distro`, `--persistent`, `--isolated-home` y `--no-enter`. Devuelve un único
+objeto, sin wizard ni mensajes de estado:
+
+```json
+{"name":"gentle-ai","result":"created"}
+```
+
+`stop NAME --json` usa `stopped` o `unchanged`. `delete NAME --yes --json` usa
+`deleted` o `unchanged` y siempre incluye `retained_home`, con `null` salvo que
+`--keep-home` conserve el home. Los valores `unchanged` corresponden a los
+no-op de `--if-not-exists`, `--if-exists` o a detener un sandbox ya detenido.
 
 ## Datos y configuración
 

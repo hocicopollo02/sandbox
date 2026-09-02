@@ -49,8 +49,13 @@ func (m *Manager) Preflight() error {
 }
 
 func (m *Manager) Create(ctx context.Context, options CreateOptions) (bool, error) {
+	result, err := m.CreateWithResult(ctx, options)
+	return result == CreateResultRemoved, err
+}
+
+func (m *Manager) CreateWithResult(ctx context.Context, options CreateOptions) (CreateResult, error) {
 	if err := options.Validate(); err != nil {
-		return false, err
+		return "", err
 	}
 	name, _ := ValidateName(options.Name)
 	options.Name = name
@@ -59,35 +64,35 @@ func (m *Manager) Create(ctx context.Context, options CreateOptions) (bool, erro
 		if options.IfNotExists {
 			status, statusErr := m.Inspector.Status(ctx, name)
 			if statusErr != nil || status != Missing {
-				return false, nil
+				return CreateResultUnchanged, nil
 			}
-			return false, model.CodedError(fmt.Sprintf("sandbox %q is held by incomplete metadata; run 'sandbox delete %s --if-exists --yes' and retry", name, name), model.ErrExists)
+			return "", model.CodedError(fmt.Sprintf("sandbox %q is held by incomplete metadata; run 'sandbox delete %s --if-exists --yes' and retry", name, name), model.ErrExists)
 		} else {
-			return false, model.CodedError(fmt.Sprintf("sandbox %q already exists", name), model.ErrExists)
+			return "", model.CodedError(fmt.Sprintf("sandbox %q already exists", name), model.ErrExists)
 		}
 	} else if !errors.Is(err, metadata.ErrNotFound) {
-		return false, err
+		return "", err
 	}
 	if err := m.Preflight(); err != nil {
-		return false, err
+		return "", err
 	}
 	status, err := m.Inspector.Status(ctx, name)
 	if err != nil {
-		return false, err
+		return "", err
 	}
 	if status != Missing {
-		return false, model.CodedError(fmt.Sprintf("sandbox %q already exists outside sandbox metadata", name), model.ErrExists)
+		return "", model.CodedError(fmt.Sprintf("sandbox %q already exists outside sandbox metadata", name), model.ErrExists)
 	}
 	home := ""
 	if options.HomeMode == IsolatedHome {
 		if err := m.Store.ValidateHomesRoot(); err != nil {
-			return false, err
+			return "", err
 		}
 		home = m.Store.Home(name)
 		if _, err := os.Stat(home); err == nil {
-			return false, model.CodedError(fmt.Sprintf("isolated home already exists: %s", home), model.ErrExists)
+			return "", model.CodedError(fmt.Sprintf("isolated home already exists: %s", home), model.ErrExists)
 		} else if !errors.Is(err, os.ErrNotExist) {
-			return false, fmt.Errorf("check isolated home: %w", err)
+			return "", fmt.Errorf("check isolated home: %w", err)
 		}
 	}
 
@@ -104,15 +109,15 @@ func (m *Manager) Create(ctx context.Context, options CreateOptions) (bool, erro
 	if err := m.Store.SaveExclusive(record); err != nil {
 		if options.IfNotExists && errors.Is(err, model.ErrExists) {
 			if _, lookupErr := m.Store.Get(name); lookupErr != nil {
-				return false, err
+				return "", err
 			}
 			status, statusErr := m.Inspector.Status(ctx, name)
 			if statusErr != nil || status != Missing {
-				return false, nil
+				return CreateResultUnchanged, nil
 			}
-			return false, model.CodedError(fmt.Sprintf("sandbox %q is held by incomplete metadata; run 'sandbox delete %s --if-exists --yes' and retry", name, name), model.ErrExists)
+			return "", model.CodedError(fmt.Sprintf("sandbox %q is held by incomplete metadata; run 'sandbox delete %s --if-exists --yes' and retry", name, name), model.ErrExists)
 		}
-		return false, err
+		return "", err
 	}
 	discardReservation := func() error { return m.Store.Delete(name) }
 
@@ -120,7 +125,7 @@ func (m *Manager) Create(ctx context.Context, options CreateOptions) (bool, erro
 	if options.HomeMode == IsolatedHome {
 		if err := os.MkdirAll(home, 0700); err != nil {
 			_ = discardReservation()
-			return false, fmt.Errorf("create isolated home: %w", err)
+			return "", fmt.Errorf("create isolated home: %w", err)
 		}
 		homeCreated = true
 	}
@@ -133,19 +138,19 @@ func (m *Manager) Create(ctx context.Context, options CreateOptions) (bool, erro
 	}
 
 	if err := m.Container.Create(ctx, name, options.Distribution.Image, home); err != nil {
-		return false, errors.Join(err, cleanup())
+		return "", errors.Join(err, cleanup())
 	}
 
 	if options.Persistence == Persistent {
 		record.HomePath = home
 		if err := m.Store.Save(record); err != nil {
 			cleanupErr := errors.Join(m.Container.Delete(ctx, name), cleanup())
-			return false, errors.Join(fmt.Errorf("save sandbox metadata: %w", err), cleanupErr)
+			return "", errors.Join(fmt.Errorf("save sandbox metadata: %w", err), cleanupErr)
 		}
 	}
 
 	if !options.AutoEnter {
-		return false, nil
+		return CreateResultCreated, nil
 	}
 	if err := m.Container.Enter(ctx, name); err != nil {
 		cleanupCtx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
@@ -154,7 +159,7 @@ func (m *Manager) Create(ctx context.Context, options CreateOptions) (bool, erro
 		if homeCreated {
 			cleanupErr = errors.Join(cleanupErr, m.Store.RemoveHome(name))
 		}
-		return false, errors.Join(err, cleanupErr)
+		return "", errors.Join(err, cleanupErr)
 	}
 
 	if options.Persistence == Disposable {
@@ -165,11 +170,11 @@ func (m *Manager) Create(ctx context.Context, options CreateOptions) (bool, erro
 		}
 		metaErr := m.Store.Delete(name)
 		if deleteErr != nil || homeErr != nil || metaErr != nil {
-			return true, errors.Join(deleteErr, homeErr, metaErr)
+			return CreateResultRemoved, errors.Join(deleteErr, homeErr, metaErr)
 		}
-		return true, nil
+		return CreateResultRemoved, nil
 	}
-	return false, nil
+	return CreateResultCreated, nil
 }
 
 func (m *Manager) Enter(ctx context.Context, name string) error {
@@ -244,26 +249,34 @@ func (m *Manager) List(ctx context.Context) ([]ListEntry, error) {
 }
 
 func (m *Manager) Stop(ctx context.Context, name string) error {
+	_, err := m.StopWithResult(ctx, name)
+	return err
+}
+
+func (m *Manager) StopWithResult(ctx context.Context, name string) (StopResult, error) {
 	name, err := ValidateName(name)
 	if err != nil {
-		return err
+		return "", err
 	}
 	if _, err := m.Store.Get(name); errors.Is(err, metadata.ErrNotFound) {
-		return model.CodedError(fmt.Sprintf("sandbox %q does not exist", name), model.ErrNotFound)
+		return "", model.CodedError(fmt.Sprintf("sandbox %q does not exist", name), model.ErrNotFound)
 	} else if err != nil {
-		return err
+		return "", err
 	}
 	status, err := m.Inspector.Status(ctx, name)
 	if err != nil {
-		return err
+		return "", err
 	}
 	if status == Missing {
-		return model.CodedError(fmt.Sprintf("sandbox %q does not exist in the container runtime", name), model.ErrNotFound)
+		return "", model.CodedError(fmt.Sprintf("sandbox %q does not exist in the container runtime", name), model.ErrNotFound)
 	}
 	if status == Stopped {
-		return nil
+		return StopResultUnchanged, nil
 	}
-	return m.Container.Stop(ctx, name)
+	if err := m.Container.Stop(ctx, name); err != nil {
+		return "", err
+	}
+	return StopResultStopped, nil
 }
 
 func (m *Manager) Info(ctx context.Context, name string) (Info, error) {

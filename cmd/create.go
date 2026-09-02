@@ -1,6 +1,7 @@
 package cmd
 
 import (
+	"encoding/json"
 	"fmt"
 
 	"github.com/hocicopollo02/sandbox/internal/sandbox"
@@ -12,7 +13,7 @@ func newCreateCommand(appState *app) *cobra.Command {
 	var distro string
 	var persistent, disposable bool
 	var isolatedHome, sharedHome bool
-	var noEnter, yes, ifNotExists bool
+	var noEnter, yes, ifNotExists, jsonOutput bool
 
 	cmd := &cobra.Command{
 		Use:   "create [name]",
@@ -24,6 +25,9 @@ func newCreateCommand(appState *app) *cobra.Command {
 			return nil
 		},
 		RunE: func(cmd *cobra.Command, args []string) error {
+			if jsonOutput && (len(args) != 1 || !cmd.Flags().Changed("distro") || !persistent || !isolatedHome || !noEnter) {
+				return fmt.Errorf("create --json requires NAME, --distro, --persistent, --isolated-home, and --no-enter")
+			}
 			if sharedHome {
 				return fmt.Errorf("shared home is disabled: sandbox never mounts the host home")
 			}
@@ -92,8 +96,10 @@ func newCreateCommand(appState *app) *cobra.Command {
 				}
 			}
 
-			appState.ui.Header("Creating " + name)
-			disposableSession, err := appState.manager.Create(cmd.Context(), sandbox.CreateOptions{
+			if !jsonOutput {
+				appState.ui.Header("Creating " + name)
+			}
+			result, err := appState.manager.CreateWithResult(cmd.Context(), sandbox.CreateOptions{
 				Name:         name,
 				Distribution: distroDef,
 				Persistence:  persistence,
@@ -104,7 +110,13 @@ func newCreateCommand(appState *app) *cobra.Command {
 			if err != nil {
 				return err
 			}
-			if disposableSession {
+			if jsonOutput {
+				return json.NewEncoder(appState.out).Encode(struct {
+					Name   string               `json:"name"`
+					Result sandbox.CreateResult `json:"result"`
+				}{Name: name, Result: result})
+			}
+			if result == sandbox.CreateResultRemoved {
 				appState.ui.Success("Sandbox removed")
 				return nil
 			}
@@ -120,5 +132,6 @@ func newCreateCommand(appState *app) *cobra.Command {
 	cmd.Flags().BoolVar(&noEnter, "no-enter", false, "create without entering (persistent only)")
 	cmd.Flags().BoolVarP(&yes, "yes", "y", false, "skip confirmations")
 	cmd.Flags().BoolVar(&ifNotExists, "if-not-exists", false, "succeed as a no-op when the sandbox already exists")
+	cmd.Flags().BoolVar(&jsonOutput, "json", false, "print successful result as JSON")
 	return cmd
 }
