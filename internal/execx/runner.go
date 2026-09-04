@@ -25,10 +25,36 @@ type CommandRunner struct {
 }
 
 func (r *CommandRunner) Run(ctx context.Context, name string, args ...string) ([]byte, error) {
+	return r.run(ctx, nil, name, args...)
+}
+
+func (r *CommandRunner) RunWithEnv(ctx context.Context, env map[string]string, name string, args ...string) ([]byte, error) {
+	return r.run(ctx, env, name, args...)
+}
+
+func (r *CommandRunner) run(ctx context.Context, env map[string]string, name string, args ...string) ([]byte, error) {
 	if err := r.log(name, args...); err != nil {
 		return nil, err
 	}
 	cmd := exec.CommandContext(ctx, name, args...)
+	if len(env) > 0 {
+		cmd.Env = make([]string, 0, len(os.Environ())+len(env))
+		for _, variable := range os.Environ() {
+			keep := true
+			for key := range env {
+				if strings.HasPrefix(variable, key+"=") {
+					keep = false
+					break
+				}
+			}
+			if keep {
+				cmd.Env = append(cmd.Env, variable)
+			}
+		}
+		for key, value := range env {
+			cmd.Env = append(cmd.Env, key+"="+value)
+		}
+	}
 	var output bytes.Buffer
 	cmd.Stdout = &output
 	cmd.Stderr = &output

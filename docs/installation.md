@@ -37,6 +37,14 @@ sandbox version
 sandbox doctor
 ```
 
+Para actualizar una instalación gestionada por Go a la última versión estable,
+ejecuta el comando desde el binario instalado en `$GOBIN` o, si está vacío, en
+`$(go env GOPATH)/bin`:
+
+```bash
+sandbox upgrade
+```
+
 Para instalar una versión concreta, usa su tag:
 
 ```bash

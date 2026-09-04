@@ -199,6 +199,7 @@ sandbox stop
 sandbox delete
 sandbox info [--json]
 sandbox doctor [--json]
+sandbox upgrade [--json]
 sandbox version
 ```
 

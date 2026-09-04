@@ -47,6 +47,7 @@ sandbox stop NAME [--json]
 sandbox delete NAME [--yes] [--keep-home] [--if-exists] [--json]
 sandbox info NAME [--json]
 sandbox doctor [--json]
+sandbox upgrade [--json]
 sandbox version
 ```
 
@@ -55,6 +56,33 @@ emitan como un único objeto JSON en stderr; su contrato está documentado en la
 [interfaz para agentes](agents.md#machine-error-codes).
 
 Aliases: `ls`, `shell`, `rm`.
+
+## `upgrade`
+
+Actualiza la instalación de `sandbox` a la última versión estable publicada
+como módulo de Go:
+
+```bash
+sandbox upgrade
+```
+
+El comando necesita Go 1.24+ y conexión a Internet. Cuando hay una actualización,
+instala el reemplazo en el directorio configurado por `GOBIN` o, si está vacío,
+en `$(go env GOPATH)/bin`. El binario que se está ejecutando debe estar en esa
+misma ubicación; de lo contrario, el comando rechaza la actualización con una
+indicación para mover el binario o configurar `GOBIN`. Si ya está en la última
+versión, no reinstala nada:
+
+```text
+sandbox is already up to date (1.2.0)
+```
+
+Con `--json` devuelve un único objeto, pensado para agentes:
+
+```json
+{"name":"sandbox","current_version":"1.2.0","latest_version":"1.3.0","result":"upgraded"}
+{"name":"sandbox","current_version":"1.3.0","latest_version":"1.3.0","result":"unchanged"}
+```
 
 ## `exec`
 

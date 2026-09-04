@@ -29,15 +29,16 @@ var (
 var ErrorFormat = "text"
 
 type app struct {
-	manager *core.Manager
-	config  config.Config
-	runner  *execx.CommandRunner
-	podman  *podman.Client
-	ui      ui.Printer
-	in      io.Reader
-	out     io.Writer
-	errOut  io.Writer
-	verbose bool
+	manager        *core.Manager
+	config         config.Config
+	runner         execx.Runner
+	executablePath func() (string, error)
+	podman         *podman.Client
+	ui             ui.Printer
+	in             io.Reader
+	out            io.Writer
+	errOut         io.Writer
+	verbose        bool
 }
 
 func NewRootCommand(home string, in io.Reader, out, errOut io.Writer) (*cobra.Command, error) {
@@ -90,6 +91,7 @@ func NewRootCommand(home string, in io.Reader, out, errOut io.Writer) (*cobra.Co
 		newDeleteCommand(appState),
 		newInfoCommand(appState),
 		newDoctorCommand(appState),
+		newUpgradeCommand(appState),
 		newVersionCommand(appState),
 	)
 	return root, nil
