@@ -74,13 +74,13 @@ indicación para mover el binario o configurar `GOBIN`. Si ya está en la últim
 versión, no reinstala nada:
 
 ```text
-sandbox is already up to date (1.2.0)
+sandbox is already up to date (1.3.0)
 ```
 
 Con `--json` devuelve un único objeto, pensado para agentes:
 
 ```json
-{"name":"sandbox","current_version":"1.2.0","latest_version":"1.3.0","result":"upgraded"}
+{"name":"sandbox","current_version":"1.3.0","latest_version":"1.4.0","result":"upgraded"}
 {"name":"sandbox","current_version":"1.3.0","latest_version":"1.3.0","result":"unchanged"}
 ```
 

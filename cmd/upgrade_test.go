@@ -57,7 +57,7 @@ func newUpgradeTestApp(runner *upgradeFakeRunner) (*app, *bytes.Buffer) {
 }
 
 func TestUpgradeJSONReportsUnchangedWithoutInstalling(t *testing.T) {
-	runner := &upgradeFakeRunner{latest: "v1.2.0"}
+	runner := &upgradeFakeRunner{latest: "v1.3.0"}
 	appState, out := newUpgradeTestApp(runner)
 	cmd := newUpgradeCommand(appState)
 	cmd.SetArgs([]string{"--json"})
@@ -65,7 +65,7 @@ func TestUpgradeJSONReportsUnchangedWithoutInstalling(t *testing.T) {
 	if err := cmd.Execute(); err != nil {
 		t.Fatal(err)
 	}
-	want := `{"name":"sandbox","current_version":"1.2.0","latest_version":"1.2.0","result":"unchanged"}
+	want := `{"name":"sandbox","current_version":"1.3.0","latest_version":"1.3.0","result":"unchanged"}
 `
 	if out.String() != want {
 		t.Fatalf("stdout = %q, want %q", out.String(), want)
@@ -78,7 +78,7 @@ func TestUpgradeJSONReportsUnchangedWithoutInstalling(t *testing.T) {
 }
 
 func TestUpgradeJSONInstallsResolvedLatestVersion(t *testing.T) {
-	runner := &upgradeFakeRunner{latest: "v1.3.0"}
+	runner := &upgradeFakeRunner{latest: "v1.4.0"}
 	appState, out := newUpgradeTestApp(runner)
 	cmd := newUpgradeCommand(appState)
 	cmd.SetArgs([]string{"--json"})
@@ -86,7 +86,7 @@ func TestUpgradeJSONInstallsResolvedLatestVersion(t *testing.T) {
 	if err := cmd.Execute(); err != nil {
 		t.Fatal(err)
 	}
-	want := `{"name":"sandbox","current_version":"1.2.0","latest_version":"1.3.0","result":"upgraded"}
+	want := `{"name":"sandbox","current_version":"1.3.0","latest_version":"1.4.0","result":"upgraded"}
 `
 	if out.String() != want {
 		t.Fatalf("stdout = %q, want %q", out.String(), want)
@@ -94,7 +94,7 @@ func TestUpgradeJSONInstallsResolvedLatestVersion(t *testing.T) {
 	wantCalls := [][]string{
 		{"go", "list", "-m", "-f", "{{.Version}}", "github.com/hocicopollo02/sandbox@latest"},
 		{"go", "env", "GOBIN", "GOPATH"},
-		{"go", "install", "github.com/hocicopollo02/sandbox@v1.3.0"},
+		{"go", "install", "github.com/hocicopollo02/sandbox@v1.4.0"},
 	}
 	if !sameUpgradeCalls(runner.calls, wantCalls) {
 		t.Fatalf("go calls = %#v, want %#v", runner.calls, wantCalls)
@@ -122,7 +122,7 @@ func sameUpgradeCalls(got, want [][]string) bool {
 }
 
 func TestUpgradeRejectsExecutableOutsideGoInstallDirectory(t *testing.T) {
-	runner := &upgradeFakeRunner{latest: "v1.3.0"}
+	runner := &upgradeFakeRunner{latest: "v1.4.0"}
 	appState, _ := newUpgradeTestApp(runner)
 	appState.executablePath = func() (string, error) {
 		return "/usr/local/bin/sandbox", nil
@@ -143,14 +143,14 @@ func TestUpgradeRejectsExecutableOutsideGoInstallDirectory(t *testing.T) {
 }
 
 func TestUpgradeHumanOutputReportsCurrentVersion(t *testing.T) {
-	runner := &upgradeFakeRunner{latest: "v1.2.0"}
+	runner := &upgradeFakeRunner{latest: "v1.3.0"}
 	appState, out := newUpgradeTestApp(runner)
 	cmd := newUpgradeCommand(appState)
 
 	if err := cmd.Execute(); err != nil {
 		t.Fatal(err)
 	}
-	if got, want := out.String(), "sandbox is already up to date (1.2.0)\n"; got != want {
+	if got, want := out.String(), "sandbox is already up to date (1.3.0)\n"; got != want {
 		t.Fatalf("stdout = %q, want %q", got, want)
 	}
 }

@@ -1478,7 +1478,7 @@ Los agentes sin TTY son usuarios de primera clase. El contrato máquina completo
 vive en [`docs/agents.md`](docs/agents.md), y las instrucciones para agentes
 que contribuyen al repositorio en `AGENTS.md`.
 
-Ergonomía implementada y pendiente (v1.1.x / v1.2.0):
+Ergonomía implementada y pendiente (v1.3.0):
 
 | Ítem | Beneficio para el agente |
 | ------ | -------------------------- |
