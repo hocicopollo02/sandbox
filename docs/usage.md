@@ -42,20 +42,19 @@ Al salir del shell se eliminan el contenedor y el home temporal.
 sandbox create [NAME] [flags]
 sandbox list [--json]
 sandbox enter [NAME]
-sandbox exec NAME -- COMMAND [ARG...]
-sandbox stop NAME [--json]
+sandbox exec NAME [--timeout DURATION] -- COMMAND [ARG...]
+sandbox stop NAME [--json] [--timeout DURATION]
 sandbox delete NAME [--yes] [--keep-home] [--if-exists] [--json]
 sandbox info NAME [--json]
 sandbox doctor [--json]
-sandbox upgrade [--json]
+sandbox upgrade [--json] [--timeout DURATION]
 sandbox version
 ```
 
 Los comandos mutadores (`create`, `exec`, `stop`, `upgrade`) aceptan
-`--timeout DURATION` (por ejemplo `5m` o `30s`). `0` (valor por defecto) significa
-sin límite. El timeout acota las operaciones externas (pull de imagen, create/start
-del contenedor, comando invitado, stop y las llamadas `go` de `upgrade`), pero nunca
-una shell interactiva a la que se entra con `create`.
+`--timeout DURATION`; `0` (valor por defecto) significa sin límite. El contrato
+completo de sus límites y operaciones acotadas está en la
+[interfaz para agentes](agents.md#the-agent-loop).
 
 El flag global `--error-format json` hace que los errores operativos se
 emitan como un único objeto JSON en stderr; su contrato está documentado en la
@@ -160,6 +159,7 @@ El valor de `status` es uno de `running`, `stopped`, `missing` o `unknown`.
 --yes
 --if-not-exists
 --json
+--timeout DURATION
 --verbose
 ```
 
