@@ -51,6 +51,12 @@ sandbox upgrade [--json]
 sandbox version
 ```
 
+Los comandos mutadores (`create`, `exec`, `stop`, `upgrade`) aceptan
+`--timeout DURATION` (por ejemplo `5m` o `30s`). `0` (valor por defecto) significa
+sin límite. El timeout acota las operaciones externas (pull de imagen, create/start
+del contenedor, comando invitado, stop y las llamadas `go` de `upgrade`), pero nunca
+una shell interactiva a la que se entra con `create`.
+
 El flag global `--error-format json` hace que los errores operativos se
 emitan como un único objeto JSON en stderr; su contrato está documentado en la
 [interfaz para agentes](agents.md#machine-error-codes).

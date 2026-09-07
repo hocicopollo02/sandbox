@@ -3,6 +3,7 @@ package cmd
 import (
 	"encoding/json"
 	"fmt"
+	"time"
 
 	"github.com/hocicopollo02/sandbox/internal/sandbox"
 	"github.com/spf13/cobra"
@@ -10,6 +11,7 @@ import (
 
 func newStopCommand(appState *app) *cobra.Command {
 	var jsonOutput bool
+	var timeout time.Duration
 	cmd := &cobra.Command{
 		Use:   "stop NAME",
 		Short: "Stop a sandbox without deleting it",
@@ -20,7 +22,9 @@ func newStopCommand(appState *app) *cobra.Command {
 			return nil
 		},
 		RunE: func(cmd *cobra.Command, args []string) error {
-			result, err := appState.manager.StopWithResult(cmd.Context(), args[0])
+			stopCtx, cancel := withTimeout(cmd.Context(), timeout)
+			defer cancel()
+			result, err := appState.manager.StopWithResult(stopCtx, args[0])
 			if err != nil {
 				return err
 			}
@@ -35,5 +39,6 @@ func newStopCommand(appState *app) *cobra.Command {
 		},
 	}
 	cmd.Flags().BoolVar(&jsonOutput, "json", false, "print successful result as JSON")
+	cmd.Flags().DurationVar(&timeout, "timeout", 0, "maximum duration for the stop call (example 30s); 0 means no limit")
 	return cmd
 }

@@ -154,3 +154,36 @@ func TestUpgradeHumanOutputReportsCurrentVersion(t *testing.T) {
 		t.Fatalf("stdout = %q, want %q", got, want)
 	}
 }
+
+type ctxAwareRunner struct {
+	upgradeFakeRunner
+}
+
+func (r *ctxAwareRunner) Run(ctx context.Context, name string, args ...string) ([]byte, error) {
+	if err := ctx.Err(); err != nil {
+		return nil, err
+	}
+	return r.upgradeFakeRunner.Run(ctx, name, args...)
+}
+
+func TestUpgradeCommandTimeoutBoundsGoCalls(t *testing.T) {
+	fake := &upgradeFakeRunner{latest: "v1.4.0"}
+	runner := &ctxAwareRunner{upgradeFakeRunner: *fake}
+	appState := &app{
+		runner: runner,
+		out:    &bytes.Buffer{},
+		errOut: &bytes.Buffer{},
+		executablePath: func() (string, error) {
+			return "/home/user/go/bin/sandbox", nil
+		},
+	}
+	cmd := newUpgradeCommand(appState)
+	cmd.SetArgs([]string{"--timeout", "1ms"})
+
+	if err := cmd.Execute(); err == nil {
+		t.Fatal("upgrade --timeout did not bound the go calls")
+	}
+	if len(fake.calls) != 0 {
+		t.Fatalf("go was invoked after timeout: %#v", fake.calls)
+	}
+}
