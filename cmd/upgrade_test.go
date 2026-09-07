@@ -6,6 +6,7 @@ import (
 	"errors"
 	"strings"
 	"testing"
+	"time"
 )
 
 type upgradeFakeRunner struct {
@@ -157,9 +158,17 @@ func TestUpgradeHumanOutputReportsCurrentVersion(t *testing.T) {
 
 type ctxAwareRunner struct {
 	upgradeFakeRunner
+	waitForCancel bool
 }
 
 func (r *ctxAwareRunner) Run(ctx context.Context, name string, args ...string) ([]byte, error) {
+	if r.waitForCancel {
+		select {
+		case <-ctx.Done():
+		case <-time.After(time.Second):
+			return nil, errors.New("runner context was not canceled")
+		}
+	}
 	if err := ctx.Err(); err != nil {
 		return nil, err
 	}
@@ -168,7 +177,7 @@ func (r *ctxAwareRunner) Run(ctx context.Context, name string, args ...string) (
 
 func TestUpgradeCommandTimeoutBoundsGoCalls(t *testing.T) {
 	fake := &upgradeFakeRunner{latest: "v1.4.0"}
-	runner := &ctxAwareRunner{upgradeFakeRunner: *fake}
+	runner := &ctxAwareRunner{upgradeFakeRunner: *fake, waitForCancel: true}
 	appState := &app{
 		runner: runner,
 		out:    &bytes.Buffer{},
@@ -183,7 +192,7 @@ func TestUpgradeCommandTimeoutBoundsGoCalls(t *testing.T) {
 	if err := cmd.Execute(); err == nil {
 		t.Fatal("upgrade --timeout did not bound the go calls")
 	}
-	if len(fake.calls) != 0 {
-		t.Fatalf("go was invoked after timeout: %#v", fake.calls)
+	if len(runner.calls) != 0 {
+		t.Fatalf("go was invoked after timeout: %#v", runner.calls)
 	}
 }

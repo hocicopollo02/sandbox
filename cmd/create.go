@@ -1,7 +1,6 @@
 package cmd
 
 import (
-	"context"
 	"encoding/json"
 	"fmt"
 	"time"
@@ -102,12 +101,8 @@ func newCreateCommand(appState *app) *cobra.Command {
 			if !jsonOutput {
 				appState.ui.Header("Creating " + name)
 			}
-			createCtx := cmd.Context()
-			if timeout > 0 && noEnter {
-				var cancel context.CancelFunc
-				createCtx, cancel = context.WithTimeout(createCtx, timeout)
-				defer cancel()
-			}
+			createCtx, cancel := withTimeout(cmd.Context(), timeout)
+			defer cancel()
 			result, err := appState.manager.CreateWithResult(createCtx, sandbox.CreateOptions{
 				Name:         name,
 				Distribution: distroDef,

@@ -152,7 +152,7 @@ func (m *Manager) CreateWithResult(ctx context.Context, options CreateOptions) (
 	if !options.AutoEnter {
 		return CreateResultCreated, nil
 	}
-	if err := m.Container.Enter(ctx, name); err != nil {
+	if err := m.Container.Enter(context.WithoutCancel(ctx), name); err != nil {
 		cleanupCtx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
 		defer cancel()
 		cleanupErr := errors.Join(m.Container.Delete(cleanupCtx, name), discardReservation())
