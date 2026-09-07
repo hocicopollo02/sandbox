@@ -163,7 +163,9 @@ func (m *Manager) CreateWithResult(ctx context.Context, options CreateOptions) (
 	}
 
 	if options.Persistence == Disposable {
-		deleteErr := m.Container.Delete(ctx, name)
+		cleanupCtx, cleanupCancel := context.WithTimeout(context.Background(), 30*time.Second)
+		defer cleanupCancel()
+		deleteErr := m.Container.Delete(cleanupCtx, name)
 		var homeErr error
 		if homeCreated {
 			homeErr = m.Store.RemoveHome(name)
