@@ -93,6 +93,17 @@ func ConfirmDeleteHome(in io.Reader, out io.Writer) (bool, error) {
 	return confirmed, nil
 }
 
+func ConfirmUninstall(path string, in io.Reader, out io.Writer) (bool, error) {
+	confirmed := false
+	form := huh.NewForm(huh.NewGroup(
+		huh.NewConfirm().Title(fmt.Sprintf("Remove sandbox installation at %q?", path)).Affirmative("Yes").Negative("No").Value(&confirmed),
+	)).WithInput(in).WithOutput(out)
+	if err := form.Run(); err != nil {
+		return false, fmt.Errorf("uninstallation confirmation: %w", err)
+	}
+	return confirmed, nil
+}
+
 func SelectSandbox(names []string, in io.Reader, out io.Writer) (string, error) {
 	if len(names) == 0 {
 		return "", fmt.Errorf("no persistent sandboxes found")

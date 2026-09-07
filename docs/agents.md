@@ -42,11 +42,14 @@ sandbox delete task-42 --yes --if-exists --json
   - exits with the executed process's exit code;
   - auto-starts a stopped sandbox first;
   - fails for unknown sandboxes without creating anything.
-- `stop` on an already-stopped sandbox succeeds (idempotent).
+- `stop` on an already-stopped sandbox succeeds (idempotent). A sandbox with
+  `unknown` status fails without calling Podman; agents must treat it as not
+  usable until its state is repaired or it is deleted.
 - `create`, `exec`, `stop`, and `upgrade` accept `--timeout DURATION` (for example
   `5m` or `30s`). `0` (the default) means no limit. The timeout bounds external
   operations (image pull, container create/start, guest command, stop, and the
   `go` calls in `upgrade`) but never an interactive shell entered with `create`.
+
 - `delete --yes` removes container, metadata and managed home unconditionally.
   `--keep-home` retains the home and prints its path. `--if-exists` makes a
   missing sandbox a successful no-op; when metadata exists, cleanup still runs.
@@ -70,10 +73,17 @@ sandbox delete task-42 --yes --if-exists --json
   `--persistent`, `--isolated-home`, and `--no-enter`, so it never starts the
   wizard or attaches a guest shell. `delete --json` requires `--yes`.
 - `upgrade` resolves the latest stable module version with Go and installs it
-  only when newer. It requires Go 1.24+, network access, and the running
-  executable to be in Go's configured `GOBIN` or `GOPATH/bin`. With `--json`,
-  it emits exactly one object with `name`, `current_version`,
+  when the local version differs. The published version has priority, including
+  over a higher local development version. It requires Go 1.24+, network access,
+  and the running executable to be in Go's configured `GOBIN` or `GOPATH/bin`.
+  With `--json`, it emits exactly one object with `name`, `current_version`,
   `latest_version`, and `result`, where `result` is `upgraded` or `unchanged`.
+- `version --json` emits exactly one object with `name`, `version`, `commit`, and
+  `build_date`. `--version` and `-v` print the short human-readable version.
+- `uninstall --yes` removes only the running sandbox executable. It preserves
+  configuration, metadata, isolated homes, and containers. `uninstall --json`
+  requires `--yes` and emits exactly one object with `name`, `path`, and
+  `result` set to `uninstalled`.
 
   ```json
   {"name":"task-42","result":"created"}
@@ -123,8 +133,9 @@ See the agent ergonomics roadmap in [`PRD.md`](../PRD.md#49-interfaz-para-agente
 Implemented (see `PRD.md` section 49 and issues #19, #20, and #22): `info NAME --json`,
 `doctor --json` (exit 1 when the host is not ready), idempotent lifecycle flags
 `create --if-not-exists` / `delete --if-exists`, success JSON for `create`,
-`stop`, and `delete`, and `upgrade [--json]`. A stale reservation is reported
-as an actionable error pointing at `delete --if-exists --yes`.
+`stop`, and `delete`, `upgrade [--json]`, `version --json`, and
+`uninstall --yes --json`. A stale reservation is reported as an actionable
+error pointing at `delete --if-exists --yes`.
 
 ## Machine error codes
 

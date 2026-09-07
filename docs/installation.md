@@ -45,6 +45,13 @@ ejecuta el comando desde el binario instalado en `$GOBIN` o, si está vacío, en
 sandbox upgrade
 ```
 
+Para eliminar solo el ejecutable instalado, conservando los sandboxes y la
+configuración:
+
+```bash
+sandbox uninstall --yes
+```
+
 Para instalar una versión concreta, usa su tag:
 
 ```bash

@@ -272,6 +272,9 @@ func (m *Manager) StopWithResult(ctx context.Context, name string) (StopResult, 
 	if status == Missing {
 		return "", model.CodedError(fmt.Sprintf("sandbox %q does not exist in the container runtime", name), model.ErrNotFound)
 	}
+	if status == Unknown {
+		return "", fmt.Errorf("could not determine the status of sandbox %q", name)
+	}
 	if status == Stopped {
 		return StopResultUnchanged, nil
 	}
