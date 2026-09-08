@@ -8,6 +8,7 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
+	"time"
 
 	"github.com/hocicopollo02/sandbox/internal/execx"
 	"github.com/spf13/cobra"
@@ -32,15 +33,19 @@ type moduleVersion struct {
 
 func newUpgradeCommand(appState *app) *cobra.Command {
 	var asJSON bool
+	var timeout time.Duration
 	cmd := &cobra.Command{
 		Use:   "upgrade",
 		Short: "Update sandbox to the latest release",
 		Args:  cobra.NoArgs,
 		RunE: func(cmd *cobra.Command, args []string) error {
-			return runUpgrade(cmd.Context(), appState, asJSON)
+			ctx, cancel := withTimeout(cmd.Context(), timeout)
+			defer cancel()
+			return runUpgrade(ctx, appState, asJSON)
 		},
 	}
 	cmd.Flags().BoolVar(&asJSON, "json", false, "print JSON")
+	cmd.Flags().DurationVar(&timeout, "timeout", 0, "maximum duration for the upgrade (example 3m); 0 means no limit")
 	return cmd
 }
 

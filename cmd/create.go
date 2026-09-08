@@ -3,6 +3,7 @@ package cmd
 import (
 	"encoding/json"
 	"fmt"
+	"time"
 
 	"github.com/hocicopollo02/sandbox/internal/sandbox"
 	"github.com/hocicopollo02/sandbox/internal/ui"
@@ -14,6 +15,7 @@ func newCreateCommand(appState *app) *cobra.Command {
 	var persistent, disposable bool
 	var isolatedHome, sharedHome bool
 	var noEnter, yes, ifNotExists, jsonOutput bool
+	var timeout time.Duration
 
 	cmd := &cobra.Command{
 		Use:   "create [name]",
@@ -99,7 +101,9 @@ func newCreateCommand(appState *app) *cobra.Command {
 			if !jsonOutput {
 				appState.ui.Header("Creating " + name)
 			}
-			result, err := appState.manager.CreateWithResult(cmd.Context(), sandbox.CreateOptions{
+			createCtx, cancel := withTimeout(cmd.Context(), timeout)
+			defer cancel()
+			result, err := appState.manager.CreateWithResult(createCtx, sandbox.CreateOptions{
 				Name:         name,
 				Distribution: distroDef,
 				Persistence:  persistence,
@@ -133,5 +137,6 @@ func newCreateCommand(appState *app) *cobra.Command {
 	cmd.Flags().BoolVarP(&yes, "yes", "y", false, "skip confirmations")
 	cmd.Flags().BoolVar(&ifNotExists, "if-not-exists", false, "succeed as a no-op when the sandbox already exists")
 	cmd.Flags().BoolVar(&jsonOutput, "json", false, "print successful result as JSON")
+	cmd.Flags().DurationVar(&timeout, "timeout", 0, "maximum duration for the automated create (example 2m); 0 means no limit. Never bounds an interactive or auto-entered shell")
 	return cmd
 }

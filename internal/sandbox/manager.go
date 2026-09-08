@@ -152,7 +152,7 @@ func (m *Manager) CreateWithResult(ctx context.Context, options CreateOptions) (
 	if !options.AutoEnter {
 		return CreateResultCreated, nil
 	}
-	if err := m.Container.Enter(ctx, name); err != nil {
+	if err := m.Container.Enter(context.WithoutCancel(ctx), name); err != nil {
 		cleanupCtx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
 		defer cancel()
 		cleanupErr := errors.Join(m.Container.Delete(cleanupCtx, name), discardReservation())
@@ -163,7 +163,9 @@ func (m *Manager) CreateWithResult(ctx context.Context, options CreateOptions) (
 	}
 
 	if options.Persistence == Disposable {
-		deleteErr := m.Container.Delete(ctx, name)
+		cleanupCtx, cleanupCancel := context.WithTimeout(context.Background(), 30*time.Second)
+		defer cleanupCancel()
+		deleteErr := m.Container.Delete(cleanupCtx, name)
 		var homeErr error
 		if homeCreated {
 			homeErr = m.Store.RemoveHome(name)

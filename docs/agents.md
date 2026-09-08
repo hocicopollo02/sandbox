@@ -43,6 +43,10 @@ sandbox delete task-42 --yes --if-exists --json
   - auto-starts a stopped sandbox first;
   - fails for unknown sandboxes without creating anything.
 - `stop` on an already-stopped sandbox succeeds (idempotent).
+- `create`, `exec`, `stop`, and `upgrade` accept `--timeout DURATION` (for example
+  `5m` or `30s`). `0` (the default) means no limit. The timeout bounds external
+  operations (image pull, container create/start, guest command, stop, and the
+  `go` calls in `upgrade`) but never an interactive shell entered with `create`.
 - `delete --yes` removes container, metadata and managed home unconditionally.
   `--keep-home` retains the home and prints its path. `--if-exists` makes a
   missing sandbox a successful no-op; when metadata exists, cleanup still runs.

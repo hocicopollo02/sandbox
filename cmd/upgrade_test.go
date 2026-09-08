@@ -6,6 +6,7 @@ import (
 	"errors"
 	"strings"
 	"testing"
+	"time"
 )
 
 type upgradeFakeRunner struct {
@@ -152,5 +153,46 @@ func TestUpgradeHumanOutputReportsCurrentVersion(t *testing.T) {
 	}
 	if got, want := out.String(), "sandbox is already up to date (1.3.0)\n"; got != want {
 		t.Fatalf("stdout = %q, want %q", got, want)
+	}
+}
+
+type ctxAwareRunner struct {
+	upgradeFakeRunner
+	waitForCancel bool
+}
+
+func (r *ctxAwareRunner) Run(ctx context.Context, name string, args ...string) ([]byte, error) {
+	if r.waitForCancel {
+		select {
+		case <-ctx.Done():
+		case <-time.After(time.Second):
+			return nil, errors.New("runner context was not canceled")
+		}
+	}
+	if err := ctx.Err(); err != nil {
+		return nil, err
+	}
+	return r.upgradeFakeRunner.Run(ctx, name, args...)
+}
+
+func TestUpgradeCommandTimeoutBoundsGoCalls(t *testing.T) {
+	fake := &upgradeFakeRunner{latest: "v1.4.0"}
+	runner := &ctxAwareRunner{upgradeFakeRunner: *fake, waitForCancel: true}
+	appState := &app{
+		runner: runner,
+		out:    &bytes.Buffer{},
+		errOut: &bytes.Buffer{},
+		executablePath: func() (string, error) {
+			return "/home/user/go/bin/sandbox", nil
+		},
+	}
+	cmd := newUpgradeCommand(appState)
+	cmd.SetArgs([]string{"--timeout", "1ms"})
+
+	if err := cmd.Execute(); err == nil {
+		t.Fatal("upgrade --timeout did not bound the go calls")
+	}
+	if len(runner.calls) != 0 {
+		t.Fatalf("go was invoked after timeout: %#v", runner.calls)
 	}
 }

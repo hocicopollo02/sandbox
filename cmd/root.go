@@ -8,6 +8,7 @@ import (
 	"os"
 	"os/signal"
 	"syscall"
+	"time"
 
 	"github.com/hocicopollo02/sandbox/internal/config"
 	"github.com/hocicopollo02/sandbox/internal/execx"
@@ -137,4 +138,14 @@ func renderError(err error, format string) (string, bool) {
 // RenderError exposes renderError for main's exit handling.
 func RenderError(err error, format string) (string, bool) {
 	return renderError(err, format)
+}
+
+// withTimeout derives a context bounded by timeout. A non-positive timeout keeps
+// the base context unchanged and returns a no-op cancel, so callers can always
+// defer cancel().
+func withTimeout(base context.Context, timeout time.Duration) (context.Context, context.CancelFunc) {
+	if timeout <= 0 {
+		return base, func() {}
+	}
+	return context.WithTimeout(base, timeout)
 }
