@@ -48,7 +48,9 @@ sandbox delete NAME [--yes] [--keep-home] [--if-exists] [--json]
 sandbox info NAME [--json]
 sandbox doctor [--json]
 sandbox upgrade [--json] [--timeout DURATION]
-sandbox version
+sandbox uninstall [--yes] [--json]
+sandbox version [--json]
+sandbox --version
 ```
 
 Los comandos mutadores (`create`, `exec`, `stop`, `upgrade`) aceptan
@@ -75,8 +77,10 @@ El comando necesita Go 1.24+ y conexión a Internet. Cuando hay una actualizaci�
 instala el reemplazo en el directorio configurado por `GOBIN` o, si está vacío,
 en `$(go env GOPATH)/bin`. El binario que se está ejecutando debe estar en esa
 misma ubicación; de lo contrario, el comando rechaza la actualización con una
-indicación para mover el binario o configurar `GOBIN`. Si ya está en la última
-versión, no reinstala nada:
+indicación para mover el binario o configurar `GOBIN`. Si la versión local es
+igual a la última versión publicada, no reinstala nada. Si es distinta, la
+versión publicada por GitHub tiene prioridad, incluso si la versión local es
+mayor:
 
 ```text
 sandbox is already up to date (1.3.0)
@@ -87,6 +91,38 @@ Con `--json` devuelve un único objeto, pensado para agentes:
 ```json
 {"name":"sandbox","current_version":"1.3.0","latest_version":"1.4.0","result":"upgraded"}
 {"name":"sandbox","current_version":"1.3.0","latest_version":"1.3.0","result":"unchanged"}
+```
+
+## `version`
+
+Muestra la versión instalada. `--version` y `-v` son alias para la forma corta:
+
+```bash
+sandbox version
+sandbox --version
+sandbox version --json
+```
+
+La salida JSON incluye la identidad del binario:
+
+```json
+{"name":"sandbox","version":"1.3.0","commit":"unknown","build_date":"unknown"}
+```
+
+## `uninstall`
+
+Elimina únicamente el ejecutable que está corriendo. Conserva la configuración,
+la metadata, los homes aislados y los contenedores existentes:
+
+```bash
+sandbox uninstall
+sandbox uninstall --yes --json
+```
+
+La confirmación se solicita en modo humano. `--json` exige `--yes` y devuelve:
+
+```json
+{"name":"sandbox","path":"/home/user/.local/bin/sandbox","result":"uninstalled"}
 ```
 
 ## `exec`

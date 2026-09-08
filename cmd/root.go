@@ -67,12 +67,14 @@ func NewRootCommand(home string, in io.Reader, out, errOut io.Writer) (*cobra.Co
 	root := &cobra.Command{
 		Use:           "sandbox",
 		Short:         "Create and manage local Linux sandboxes",
+		Version:       Version,
 		SilenceUsage:  true,
 		SilenceErrors: true,
 		RunE: func(cmd *cobra.Command, args []string) error {
 			return cmd.Help()
 		},
 	}
+	root.SetVersionTemplate("sandbox {{.Version}}\n")
 	root.PersistentFlags().BoolVar(&appState.verbose, "verbose", false, "show external command details")
 	root.PersistentFlags().StringVar(&ErrorFormat, "error-format", "text", "error output format: text or json")
 	root.PersistentPreRunE = func(cmd *cobra.Command, args []string) error {
@@ -93,6 +95,7 @@ func NewRootCommand(home string, in io.Reader, out, errOut io.Writer) (*cobra.Co
 		newInfoCommand(appState),
 		newDoctorCommand(appState),
 		newUpgradeCommand(appState),
+		newUninstallCommand(appState),
 		newVersionCommand(appState),
 	)
 	return root, nil
